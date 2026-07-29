@@ -1,17 +1,3 @@
-/**
- * The shell's surface: speckled cream, painted once.
- *
- * Two canvases — colour and bump — built at startup and never touched again.
- * The speckles carry both: brown flecks in the colour map, the same flecks as
- * shallow relief in the bump, which is what keeps the shell reading as an
- * eggshell rather than a cream billiard ball under the clearcoat.
- *
- * Without a 2D canvas (Node, and anything else running the animation maths
- * without a document) the skin goes inert and the shell renders plain cream.
- * That is the same bargain environment.js makes: the surface is a nicety, the
- * geometry is not.
- */
-
 const WIDTH = 2048;
 const HEIGHT = 1024;
 const SPECKLES = 900;
@@ -36,7 +22,6 @@ export function createShellSkin(THREE, { width = WIDTH, height = HEIGHT, random 
   g.fillStyle = '#f0e3cd';
   g.fillRect(0, 0, width, height);
 
-  // Mid grey is flat ground for a bump map; the flecks sit just under it.
   const b = bump.ctx;
   b.fillStyle = '#808080';
   b.fillRect(0, 0, width, height);
