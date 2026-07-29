@@ -16,7 +16,6 @@ describe('static hosting', () => {
     await mkdir(join(root, 'assets'));
     await writeFile(join(root, 'index.html'), '<!DOCTYPE html><title>marc</title>');
     await writeFile(join(root, 'assets', 'index-abc123.css'), 'body{}');
-    // Anything dropped in public/ ships under whatever name it had.
     await writeFile(join(root, 'an egg.svg'), '<svg/>');
     await writeFile(join(root, 'EGG.PNG'), 'png');
     middleware = createStaticMiddleware(root);
@@ -40,8 +39,6 @@ describe('static hosting', () => {
 
   it('decodes the escapes a browser puts in the path', async () => {
     await withServer(middleware, async (request) => {
-      // `public/an egg.svg` is only ever requested as `an%20egg.svg`, and
-      // matching that against the filesystem verbatim finds nothing.
       const { status, body } = await request('/an%20egg.svg');
       assert.equal(status, 200);
       assert.equal(body, '<svg/>');
@@ -50,7 +47,6 @@ describe('static hosting', () => {
 
   it('refuses to walk out of the build directory through an escape either', async () => {
     await withServer(middleware, async (request) => {
-      // Decoding happens before normalize() and the prefix check, not after.
       const { body } = await request('/%2e%2e%2f%2e%2e%2fetc%2fpasswd');
       assert.match(body, /marc/, 'anything outside the root falls back to the entry document');
     });
@@ -83,8 +79,6 @@ describe('static hosting', () => {
   });
 
   it('does not invent a fallback for a missing asset', async () => {
-    // A 404 here is a build problem. Answering it with index.html would hand
-    // the browser HTML where it asked for JavaScript and hide the cause.
     await withServer(middleware, async (request) => {
       assert.equal((await request('/assets/gone.js')).status, 404);
     });

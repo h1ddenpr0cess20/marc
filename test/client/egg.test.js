@@ -1,9 +1,3 @@
-/**
- * Marc's pure maths. No WebGL — three's geometry and colour classes are plain
- * arithmetic and run fine in Node, and the skin quietly goes inert without a
- * document, which is exactly the path this exercises.
- */
-
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as THREE from 'three';
@@ -22,9 +16,6 @@ describe('MOODS', () => {
   });
 
   it('gives every state every channel', () => {
-    // The easing loop walks the keys of the idle mood and reads mood[k] off
-    // whichever state is current. A channel missing from one state would ease
-    // toward undefined and put NaN into the transform — Marc vanishes.
     for (const [name, mood] of Object.entries(MOODS)) {
       assert.deepEqual(Object.keys(mood).sort(), [...CHANNELS].sort(), `${name} is missing a channel`);
       for (const [channel, value] of Object.entries(mood)) {
@@ -55,8 +46,6 @@ describe('MOODS', () => {
   });
 
   it('leaves the states that should hold still with nothing for energy to scale', () => {
-    // squash multiplies its baseline, so a zero here is a hard stop however
-    // loud the room gets — a spinning egg shouldn't also be bobbing.
     assert.equal(MOODS.thinking.squash, 0);
     assert.equal(MOODS.idle.squash, 0);
   });
@@ -99,7 +88,6 @@ describe('motion', () => {
     });
 
     it('lands exactly on target rather than overshooting on a long frame', () => {
-      // dt * rate above 1 would otherwise fly past and oscillate.
       assert.equal(approach(0, 1, 10, 1), 1);
       assert.equal(approach(5, -3, 40, 0.5), -3);
     });
@@ -141,7 +129,6 @@ describe('shapeEgg', () => {
     const p = shapeEgg(geometry.attributes.position.array);
     let widest = 0;
     for (let i = 0; i < p.length; i += 3) widest = Math.max(widest, Math.hypot(p[i], p[i + 2]));
-    // Nothing collapses to zero radius except the two poles themselves.
     let near = 0;
     for (let i = 0; i < p.length; i += 3) {
       const y = p[i + 1];
@@ -167,7 +154,6 @@ describe('shapeEgg', () => {
 
 describe('createShellSkin', () => {
   it('goes inert without a document instead of throwing', () => {
-    // The whole module is a nicety: no canvas, no speckles, plain cream shell.
     const skin = createShellSkin(THREE);
     assert.equal(skin.map, null);
     assert.equal(skin.bumpMap, null);
@@ -175,18 +161,12 @@ describe('createShellSkin', () => {
 });
 
 describe('createEggBuddy', () => {
-  /* No renderer and no document, so the environment map and the skin both
-     quietly give up — which is what they are written to do, and all this needs
-     is the rig. */
   const stubStage = () => ({ _scene: {}, _renderer: null, setObject() {} });
 
   it('ignores a state that is not one of the four', () => {
     const marc = createEggBuddy({ stage: stubStage(), THREE });
     marc.setState('speaking');
 
-    // `constructor` and `__proto__` are the ones a truth test lets through:
-    // both are truthy on any object literal, and interpolating towards one
-    // turns every channel into NaN and never recovers.
     for (const junk of ['nonsense', 'constructor', '__proto__', 'toString']) {
       marc.setState(junk);
       assert.equal(marc.state, 'speaking', `${junk} was taken for a mood`);
@@ -208,8 +188,6 @@ describe('createEggBuddy', () => {
     createEggBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, THREE });
     assert.equal(object.name, 'marc');
     assert.ok(object.getObjectByName('shell'), 'no shell under the group');
-    // The nesting is load-bearing: spin lives between the world tilt and the
-    // lie-down, so the two never fight.
     assert.ok(object.getObjectByName('spinner').getObjectByName('body'));
   });
 });
