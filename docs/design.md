@@ -34,7 +34,9 @@ second process, and the key lives in one place either way.
 ## Storage
 
 The log is one record per call under `marc.history.v1`; memory is a list of
-lines under `marc.memory.v1`. Neither is uploaded — audio already goes straight
+lines under `marc.memory.v1`. A third key, `marc.tools.v1`, holds the tools
+this browser has switched off — nothing writes it yet, because there is nothing
+to switch. Neither is uploaded — audio already goes straight
 to OpenAI without passing through the proxy, and the transcript doesn't go even
 that far. The memory list rides in the `POST /api/session` body, which is the
 same request that already names the model and voice, and the proxy keeps no
@@ -105,6 +107,7 @@ src/
     api.js              The proxy's two endpoints, as functions
     history.js          Past conversations in localStorage, and picking one up
     memory.js           What it remembers between calls, in localStorage
+    tools.js            Which of the server's tools this browser switched off
     egg/                Geometry and animation. Knows nothing about transports
       index.js            The controller and the per-frame loop
       moods.js            Targets per conversational state
@@ -123,6 +126,7 @@ src/
       hud.js              Status chip, transcript, caption
       history.js          The log panel behind `log`, and its `continue`
       memory.js           The memory panel behind the `memory` button
+      tools.js            The tool switches behind the `tools` button — empty for now
       controls.js         Mic (tap mutes, hold hangs up), field, send, pickers
       viewport.js         Keeps the composer above the on-screen keyboard
     vendor/
