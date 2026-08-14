@@ -104,10 +104,11 @@ src/
   client/
     main.js             The wiring, and nothing else
     styles.css          The HUD around Marc
-    api.js              The proxy's two endpoints, as functions
+    api.js              The server's endpoints, as functions
     history.js          Past conversations in localStorage, and picking one up
     memory.js           What it remembers between calls, in localStorage
     tools.js            Which of the server's tools this browser switched off
+    tasks.js            The work agents are doing, mirrored and polled
     egg/                Geometry and animation. Knows nothing about transports
       index.js            The controller and the per-frame loop
       moods.js            Targets per conversational state
@@ -119,7 +120,7 @@ src/
       index.js            Lifecycle: mic, secret, connect, meter, tear down
       webrtc.js           Peer connection, data channel, SDP handshake
       events.js           Realtime server events → this vocabulary
-      tools.js            remember/forget, run in the page
+      tools.js            remember/forget in the page; the rest routed to the server
       metering.js         Two analysers → one 0..1 number per frame
       emitter.js
     ui/
@@ -127,6 +128,7 @@ src/
       history.js          The log panel behind `log`, and its `continue`
       memory.js           The memory panel behind the `memory` button
       tools.js            The tool switches behind the `tools` button — empty for now
+      connectors.js       The agent setup and the work board, behind `connectors`
       controls.js         Mic (tap mutes, hold hangs up), field, send, pickers
       viewport.js         Keeps the composer above the on-screen keyboard
     vendor/
@@ -134,11 +136,18 @@ src/
   server/
     index.js            Entry point
     app.js              The middleware chain
-    api.js              /api/models + /api/session
+    api.js              /api/models + /api/session, and the connector routes
     openai.js           The two calls it makes
     persona.js          Who Marc is, and the session config
+    origin.js           Who is allowed to ask for a change
     config.js           The environment, resolved once
     static.js           Hosting for dist/ — production only
+    connectors/         Coding agents, and the tasks handed to them
+      index.js            The registry: settings, tools, dispatch
+      agents.js           Each CLI as a command line, and how to read it back
+      settings.js         What the panel may change, checked and saved
+      tasks.js            The child processes, and their status
+      tools.js            The three function tools, as the model sees them
 docs/                   These notes, configuration, policies, screenshots
 test/                   node:test, against a stub OpenAI
 .github/workflows/      CI (lint, tests, build smoke test), CodeQL, Docker publish

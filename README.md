@@ -34,6 +34,12 @@ memory is all there is, and it has its own switch — but the panel and the
 storage behind it are wired, so a tool the session learns to declare shows up
 there with a switch of its own.
 
+`connectors` is where you hand Marc a coding agent. Switch on Codex, point it at
+a repo, and say what you want built: Marc dispatches it, and tells you when it
+lands. The agent runs headless on the machine serving the page and edits real
+files, so nothing is on until you turn it on — see
+[configuration](docs/configuration.md#connectors).
+
 The log keeps every conversation. `continue` on one picks it back up: the call is
 dialled again with those turns handed over as context, and what you say from
 there lands in the same entry rather than a new one.
