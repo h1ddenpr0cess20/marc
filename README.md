@@ -3,7 +3,7 @@
 A voice agent rendered as an egg. Marc is speckled and cream-shelled: he rocks
 where he stands, lies down and spins like a hard-boiled egg while he thinks, and
 squashes in time with whoever is making sound — all of it driven by a live
-OpenAI Realtime call. He remembers what you tell him to, between calls.
+OpenAI GPT-Live conversation, with a Responses backend for reasoning and tools. He remembers what you tell him to, between calls.
 
 ![Marc in a desktop browser](docs/screenshots/desktop.png)
 
@@ -21,6 +21,9 @@ cp .env.example .env      # add your OPENAI_API_KEY
 npm run dev               # → http://localhost:5173
 ```
 
+Requires API access to `gpt-live-1` and the backend model (`gpt-5.6-terra` by default).
+Voice duration, backend tokens, and tool use are billed separately.
+
 Click the mic, allow the browser's microphone prompt, and start talking.
 
 Tapping the mic is the microphone switch: turning it off stops what you send and
@@ -33,10 +36,9 @@ while you hold, and the call ends when it lands.
 `memory` and the log, one row each. Picking a row closes the menu behind it,
 and work still running says so on the button while the menu is shut.
 
-`tools` is where the switches for Marc's tools will be. It is empty today —
-memory is all there is, and it has its own switch — but the panel and the
-storage behind it are wired, so a tool the session learns to declare shows up
-there with a switch of its own.
+`tools` includes web search, enabled by default. Ask Marc about current information
+and the backend can search while the voice conversation continues. Sources appear
+as clickable links below the captions. Switching search off reconnects the call.
 
 `connectors` is where you hand Marc a coding agent. Switch on Codex, point it at
 a repo, and say what you want built: Marc dispatches it, and tells you when it
@@ -56,7 +58,7 @@ there lands in the same entry rather than a new one.
 | `npm start` | Serves `dist/` with the same proxy in front |
 | `npm run preview` | `build` then `start` |
 | `npm run preview:lan` | `build` then `start`, over HTTPS on the network |
-| `npm test` | `node:test` over the server |
+| `npm test` | `node:test` over the client and server |
 | `npm run lint` | ESLint |
 
 CI runs the lint, the tests on Node 22.12 and 24, and a build that then has to

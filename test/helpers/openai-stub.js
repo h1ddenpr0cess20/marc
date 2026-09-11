@@ -21,12 +21,10 @@ export async function startOpenAIStub({ models = DEFAULT_MODELS, fail = null } =
       return res.end(JSON.stringify({ data: models.map((id) => ({ id })) }));
     }
 
-    if (req.url === '/v1/realtime/client_secrets') {
-      const session = requests.at(-1).body.session;
+    if (req.url === '/v1/live/sessions') {
       return res.end(JSON.stringify({
-        value: 'ek_test',
-        expires_at: 1234,
-        session: { model: session.model },
+        session: { id: 'live_test' },
+        transport: { type: 'webrtc', sdp: 'v=0 fake answer' },
       }));
     }
 
@@ -44,6 +42,8 @@ export async function startOpenAIStub({ models = DEFAULT_MODELS, fail = null } =
 }
 
 export const DEFAULT_MODELS = [
+  'gpt-live-1',
+  'gpt-live-1-2026-09-11',
   'gpt-4o',
   'gpt-realtime-mini',
   'gpt-4o-realtime-preview-2024-12-17',

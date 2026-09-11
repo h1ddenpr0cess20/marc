@@ -186,17 +186,17 @@ describe('what the model is told', () => {
     const middleware = createApiMiddleware(config, connectors);
 
     await withServer(middleware, async (request) => {
-      await request('/api/session', post({}));
+      await request('/api/session', post({ sdp: 'v=0 offer' }));
       const { session } = stub.requests.at(-1).body;
-      assert.ok(session.tools.some((t) => t.name === 'dispatch_task'));
-      assert.match(session.instructions, /Codex/);
+      assert.ok(session.delegation.responses.tools.some((t) => t.name === 'dispatch_task'));
+      assert.match(session.delegation.responses.instructions, /Codex/);
 
       /** Switched off between two calls, the next one goes out without them. */
       connectors.configure({ agents: { codex: { enabled: false } } });
-      await request('/api/session', post({}));
+      await request('/api/session', post({ sdp: 'v=0 offer' }));
       const after = stub.requests.at(-1).body.session;
-      assert.equal(after.tools.some((t) => t.name === 'dispatch_task'), false);
-      assert.equal(/Codex/.test(after.instructions), false);
+      assert.equal(after.delegation.responses.tools.some((t) => t.name === 'dispatch_task'), false);
+      assert.equal(/Codex/.test(after.delegation.responses.instructions), false);
     });
   });
 });

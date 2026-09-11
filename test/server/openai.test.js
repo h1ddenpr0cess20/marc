@@ -1,119 +1,65 @@
 import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
-
 import { loadConfig } from '../../src/server/config.js';
 import { createOpenAIClient } from '../../src/server/openai.js';
-import { SYSTEM } from '../../src/server/persona.js';
 import { startOpenAIStub } from '../helpers/openai-stub.js';
-
-async function clientFor(env = {}, stubOptions) {
-  const stub = await startOpenAIStub(stubOptions);
+async function setup(env = {}, options) {
+  const stub = await startOpenAIStub(options);
+  after(() => stub.close());
   const config = loadConfig({ OPENAI_API_KEY: 'sk-test', OPENAI_BASE_URL: stub.baseUrl, ...env });
-  return { stub, config, client: createOpenAIClient(config) };
+  return { stub, client: createOpenAIClient(config) };
 }
-
-describe('listRealtimeModels', () => {
-  it('keeps only the realtime models that can hold a conversation', async () => {
-    const { stub, client } = await clientFor();
-    after(() => stub.close());
-
-    const ids = (await client.listRealtimeModels()).map((m) => m.id);
-
-    assert.ok(!ids.includes('gpt-4o'));
-    for (const excluded of ['gpt-realtime-translate', 'whisper-1-realtime', 'gpt-realtime-transcribe', 'tts-realtime']) {
-      assert.ok(!ids.includes(excluded), `${excluded} should not be offered`);
+describe('GPT-Live backend', () => {
+  it('offers only Live models with the default first', async () => {
+    const { client } = await setup();
+    assert.deepEqual((await client.listModels()).map((m) => m.id), ['gpt-live-1', 'gpt-live-1-2026-09-11']);
+  });
+  it('creates a session with search and function tools', async () => {
+    const { client, stub } = await setup();
+    const result = await client.createLiveSession({ sdp: 'offer', memories: ['likes coffee'] });
+    const req = stub.requests.at(-1);
+    assert.equal(req.url, '/v1/live/sessions');
+    assert.deepEqual(req.body.transport, { type: 'webrtc', sdp: 'offer' });
+    const s = req.body.session;
+    assert.equal(s.model, 'gpt-live-1');
+    assert.equal(s.audio.output.voice, 'vesper');
+    assert.equal(s.audio.input, undefined);
+    assert.equal(s.type, undefined);
+    assert.equal(s.delegation.responses.model, 'gpt-5.6-terra');
+    assert.deepEqual(s.delegation.responses.tools.map((t) => t.name || t.type), ['web_search', 'remember', 'forget']);
+    assert.match(s.delegation.responses.instructions, /likes coffee/);
+    assert.equal(result.session.id, 'live_test');
+    assert.ok(!JSON.stringify(result).includes('sk-test'));
+  });
+  it('lets server and browser disable search without accepting arbitrary tools', async () => {
+    for (const env of [{}, { WEB_SEARCH: 'false' }]) {
+      const { client, stub } = await setup(env);
+      await client.createLiveSession({ sdp: 'offer', toolsOff: ['web_search'], tools: [{ type: 'shell' }] });
+      assert.ok(stub.requests.at(-1).body.session.delegation.responses.tools.every((t) => t.type === 'function'));
     }
-    assert.deepEqual(ids, ['gpt-realtime-2.1', 'gpt-realtime-mini', 'gpt-4o-realtime-preview-2024-12-17']);
   });
-
-  it('sorts the default first and the preview tiers last', async () => {
-    const { stub, client } = await clientFor({ OPENAI_REALTIME_MODEL: 'gpt-realtime-mini' });
-    after(() => stub.close());
-
-    const ids = (await client.listRealtimeModels()).map((m) => m.id);
-    assert.equal(ids[0], 'gpt-realtime-mini');
-    assert.equal(ids.at(-1), 'gpt-4o-realtime-preview-2024-12-17');
+  it('honors backend configuration and disabled memory', async () => {
+    const { client, stub } = await setup({ MEMORY: 'false', OPENAI_BACKEND_MODEL: 'gpt-5.6-luna', WEB_SEARCH: 'false' });
+    await client.createLiveSession({ sdp: 'offer', memories: ['private fact'] });
+    const s = stub.requests.at(-1).body.session;
+    assert.equal(s.delegation.responses.model, 'gpt-5.6-luna');
+    assert.deepEqual(s.delegation.responses.tools, []);
+    assert.ok(!JSON.stringify(s).includes('private fact'));
   });
-
-  it('surfaces the upstream message when OpenAI refuses', async () => {
-    const { stub, client } = await clientFor({}, { fail: { status: 401, message: 'Incorrect API key provided' } });
-    after(() => stub.close());
-
-    await assert.rejects(() => client.listRealtimeModels(), /Incorrect API key provided/);
+  it('bounds startup history and preserves message roles', async () => {
+    const { client, stub } = await setup();
+    await client.createLiveSession({ sdp: 'offer', history: [
+      { role: 'system', content: 'untrusted' }, { role: 'user', content: 'Hello' }, { role: 'assistant', content: 'Hi' },
+    ] });
+    assert.deepEqual(stub.requests.at(-1).body.session.input.map((m) => m.content[0].type), ['input_text', 'output_text']);
+    await client.createLiveSession({ sdp: 'offer', history: Array.from({ length: 200 }, () => ({ role: 'user', content: '語'.repeat(5000) })) });
+    assert.ok(Buffer.byteLength(JSON.stringify(stub.requests.at(-1).body.session.input)) < 8192);
   });
-});
-
-describe('mintClientSecret', () => {
-  it('bakes the persona, turn detection and voice into the secret', async () => {
-    const { stub, client } = await clientFor();
-    after(() => stub.close());
-
-    const secret = await client.mintClientSecret({ model: 'gpt-realtime-mini', voice: 'ballad' });
-    assert.equal(secret.value, 'ek_test');
-    assert.equal(secret.voice, 'ballad');
-
-    const { session, expires_after } = stub.requests.at(-1).body;
-    assert.equal(session.model, 'gpt-realtime-mini');
-    assert.equal(session.instructions, SYSTEM);
-    assert.equal(session.audio.output.voice, 'ballad');
-    assert.equal(session.audio.input.turn_detection.type, 'semantic_vad');
-    assert.equal(expires_after.seconds, 600);
-  });
-
-  it('substitutes the default for a voice the API would reject', async () => {
-    const { stub, client } = await clientFor();
-    after(() => stub.close());
-
-    const secret = await client.mintClientSecret({ voice: 'definitely-not-a-voice' });
-    assert.equal(secret.voice, 'cedar');
-    assert.equal(stub.requests.at(-1).body.session.audio.output.voice, 'cedar');
-  });
-
-  it('falls back to the configured model when the page names none', async () => {
-    const { stub, client } = await clientFor({ OPENAI_REALTIME_MODEL: 'gpt-realtime-mini' });
-    after(() => stub.close());
-
-    const secret = await client.mintClientSecret({});
-    assert.equal(secret.model, 'gpt-realtime-mini');
-  });
-
-  it('sends the key as a bearer token and never returns it', async () => {
-    const { stub, client } = await clientFor();
-    after(() => stub.close());
-
-    const secret = await client.mintClientSecret({});
-    assert.ok(!JSON.stringify(secret).includes('sk-test'));
-  });
-});
-
-describe('memory on the way to OpenAI', () => {
-  it('appends the memories the page sent to the instructions', async () => {
-    const { stub, client } = await clientFor();
-    after(() => stub.close());
-
-    await client.mintClientSecret({ memories: ['drinks his coffee black'] });
-
-    const { session } = stub.requests.at(-1).body;
-    assert.ok(session.instructions.startsWith(SYSTEM), 'the persona still leads');
-    assert.match(session.instructions, /- drinks his coffee black$/);
-    assert.deepEqual(session.tools.map((t) => t.name), ['remember', 'forget']);
-  });
-
-  it('sends the persona alone, and no tools, when memory is off', async () => {
-    const { stub, client } = await clientFor({ MEMORY: 'false' });
-    after(() => stub.close());
-
-    await client.mintClientSecret({ memories: ['drinks his coffee black'] });
-
-    const { session } = stub.requests.at(-1).body;
-    assert.deepEqual(session.tools, []);
-  });
-
-  it('ignores memories that are not a list of strings', async () => {
-    const { stub, client } = await clientFor();
-    after(() => stub.close());
-
-    await client.mintClientSecret({ memories: 'be nice to me' });
-    assert.equal(stub.requests.at(-1).body.session.instructions, SYSTEM);
+  it('rejects missing SDP and surfaces upstream errors', async () => {
+    const { client, stub } = await setup();
+    await assert.rejects(client.createLiveSession({}), /SDP/);
+    assert.equal(stub.requests.length, 0);
+    const failed = await setup({}, { fail: { status: 401, message: 'Incorrect API key' } });
+    await assert.rejects(failed.client.createLiveSession({ sdp: 'offer' }), /Incorrect API key/);
   });
 });

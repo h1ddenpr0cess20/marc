@@ -1,302 +1,193 @@
-import { fetchClientSecret } from '../api.js';
 import { createEmitter } from './emitter.js';
-import { createEventHandler } from './events.js';
 import { createAnalyser, createMeter } from './metering.js';
 import { createTools, toolLabel } from './tools.js';
 import { connect } from './webrtc.js';
+import { createEventHandler } from './events.js';
 
 const MIC_CONSTRAINTS = {
   audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 };
-
-/** How much of an earlier conversation rides along when one is picked up. */
 const PRIOR_TURNS = 40;
 const PRIOR_CHARS = 6000;
 
-/**
- * The turns of an earlier conversation, trimmed to what is worth carrying and
- * cut down to the two roles a conversation has. They travel as turns rather
- * than as a summary of turns, because that is what the realtime API takes: one
- * `conversation.item.create` each, a user message holding `input_text` and an
- * assistant message holding `output_text`. Describing the history inside a
- * single message instead leaves the model with no history at all — only
- * somebody telling it about one.
- *
- * The oldest go first when there are too many: what was said last is what the
- * next sentence is most likely to follow from.
- */
 export function prior(turns = []) {
   const kept = turns
-    .filter((turn) => turn?.content && (turn.role === 'user' || turn.role === 'assistant'))
+    .filter((turn) => turn?.content && ['user', 'assistant'].includes(turn.role))
     .slice(-PRIOR_TURNS)
     .map((turn) => ({ role: turn.role, content: String(turn.content).slice(0, PRIOR_CHARS) }));
-
   let total = kept.reduce((sum, turn) => sum + turn.content.length, 0);
-  while (total > PRIOR_CHARS && kept.length > 1) {
-    total -= kept.shift().content.length;
-  }
-
+  while (total > PRIOR_CHARS && kept.length > 1) total -= kept.shift().content.length;
   return kept;
 }
 
-/** One replayed turn, in the shape the API takes for that role. */
-export function historyItem({ role, content }) {
-  const part = role === 'assistant'
-    ? { type: 'output_text', text: content }
-    : { type: 'input_text', text: content };
-
-  return {
-    type: 'conversation.item.create',
-    item: { type: 'message', role, status: 'completed', content: [part] },
-  };
-}
-
-function micUnavailable() {
-  if (navigator.mediaDevices?.getUserMedia) return null;
-  return globalThis.isSecureContext === false
-    ? 'the microphone needs a secure page, and this one is plain http:// — serve it over https (npm run dev:lan) or open it on localhost'
-    : 'this browser won’t hand over a microphone — try opening the page in Safari or Chrome';
-}
-
-export function createVoiceSession({ model, voice, memory } = {}) {
+export function createVoiceSession({ model = 'gpt-live-1', voice, memory, toolsOff = () => [] } = {}) {
   const { on, emit } = createEmitter();
   const messages = [];
-  /**
-   * The connector tools are always routed, whether or not an agent is on. What
-   * the model may call is the session's to declare, and the server declares it
-   * when it mints one — so a tool that arrives here was offered, and answering
-   * it beats leaving the model waiting on its own call.
-   */
   const tools = createTools({ memory });
-
   let current = model;
   let currentVoice = voice;
-
   let call = null;
+  let events = null;
+  let pending = null;
   let audio = null;
   let audioEl = null;
   let micStream = null;
   let micAnalyser = null;
   let outAnalyser = null;
-
   let state = 'idle';
   let context = [];
   let muted = false;
-  let connecting = false;
   let generation = 0;
   let picked = 0;
-  let mintedPick = 0;
+  let connectedPick = 0;
 
   function setState(next) {
     if (state === next) return;
     state = next;
     emit('state', next);
   }
+  function fail(message) { emit('error', { message }); }
 
-  function fail(message) {
-    emit('error', { message });
-  }
-
-  /**
-   * Answers a function call the model made. The result has to go back as a
-   * `function_call_output` item followed by a fresh `response.create` — without
-   * the second frame the model waits forever on its own tool.
-   *
-   * A connector tool is a round trip to the server, so this can take long
-   * enough for the call behind it to have gone. The generation it started in is
-   * what decides whether the answer still has anywhere to go.
-   */
-  async function runTool({ call_id: callId, name, args }) {
+  async function runTool({ name, args }) {
     const tool = tools[name];
-    if (!tool) return;
-
+    if (!tool) return { ok: false, error: 'Unknown tool: ' + name };
     emit('tool', toolLabel(name));
     const mine = generation;
-
     let output;
-    try {
-      output = await tool(args);
-    } catch (err) {
-      output = { ok: false, error: err?.message ?? String(err) };
+    try { output = await tool(args); }
+    catch (err) { output = { ok: false, error: err?.message ?? String(err) }; }
+    if (mine === generation) {
+      if (output?.id && output?.status) emit('task', output);
+      else emit('memory', output);
     }
-    if (mine !== generation || !call?.open) return;
-
-    call.send({
-      type: 'conversation.item.create',
-      item: { type: 'function_call_output', call_id: callId, output: JSON.stringify(output) },
-    });
-    call.send({ type: 'response.create' });
-
-    /** A dispatch or a stop comes back as the task itself: the board wants it
-     *  now rather than at the next poll. */
-    if (output?.id && output?.status) emit('task', output);
-    else emit('memory', output);
+    return output;
   }
-
-  const events = createEventHandler({
-    setState,
-    emit,
-    fail,
-    messages,
-    getModel: () => current,
-    onFunctionCall: runTool,
-  });
-
-  /**
-   * What the workspace has to say, waiting for a gap.
-   *
-   * Cutting into a response to announce that a task finished is worse than
-   * saying it a moment later, and the API takes one response at a time — so a
-   * note queues until the model is not already answering, and goes up as a
-   * message rather than as anything the person said. The "[workspace]" marker
-   * is what the instructions tell the model to read it by.
-   */
-  const notes = [];
-
-  function flushNotes() {
-    if (!notes.length || !call?.open || events.responding) return;
-    const text = notes.splice(0).join('\n');
-    call.send({
-      type: 'conversation.item.create',
-      item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
-    });
-    call.send({ type: 'response.create' });
-    setState('thinking');
-  }
-
-  on('done', flushNotes);
 
   const meter = createMeter(
-    () => (state === 'speaking' ? outAnalyser : state === 'listening' ? micAnalyser : null),
+    () => state === 'speaking' ? outAnalyser : micAnalyser,
     (level) => emit('level', level),
   );
 
   async function start() {
-    if (call || connecting) return;
-    connecting = true;
+    if (call || pending) return;
+    const controller = new AbortController();
+    pending = controller;
     const mine = ++generation;
     const abandoned = () => mine !== generation;
+    setState('connecting');
     try {
-      const unavailable = micUnavailable();
-      if (unavailable) throw new Error(unavailable);
-      micStream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS);
-      if (abandoned()) return stop();
-
-      mintedPick = picked;
-      /** The turns are settled before the session is minted: the instructions
-       *  have to say what they are, and that is decided server-side. */
-      const earlier = prior(context);
-      const secret = await fetchClientSecret({
-        model: current,
-        voice: currentVoice,
-        memories: memory?.lines() ?? [],
-        resumed: earlier.length > 0,
-      });
-      if (abandoned()) return stop();
-      current = secret.model ?? current;
-      currentVoice = secret.voice ?? currentVoice;
-
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error(globalThis.isSecureContext === false
+          ? 'the microphone needs https or localhost (npm run dev:lan)'
+          : 'this browser cannot access a microphone; try Safari or Chrome');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS);
+      if (abandoned()) { stream.getTracks().forEach((track) => track.stop()); return; }
+      micStream = stream;
+      connectedPick = picked;
       audio = new AudioContext();
       micAnalyser = createAnalyser(audio, micStream);
-
       audioEl = new Audio();
       audioEl.autoplay = true;
-
-      call = await connect({
-        secret: secret.value,
+      const earlier = prior(context);
+      const handler = createEventHandler({
+        setState, emit, fail, messages, runTool,
+        send: (event) => call?.send(event),
+      });
+      events = handler;
+      const connection = await connect({
+        options: { model: current, voice: currentVoice, history: earlier,
+          resumed: earlier.length > 0, memories: memory?.lines() ?? [], toolsOff: toolsOff() },
+        signal: controller.signal,
         micStream,
-        onEvent: events.handle,
+        onEvent: (event) => {
+          if (!abandoned()) handler.handle(event);
+          else if (event.type === 'session.closed') emit('usage', { ...event.usage, final: true });
+        },
         onTrack: (stream) => {
           if (abandoned()) return;
           audioEl.srcObject = stream;
           outAnalyser = createAnalyser(audio, stream);
+          audioEl.play?.().catch(() => fail('Audio playback was blocked; allow sound and reconnect.'));
         },
         onClose: (reason) => {
-          if (!call) return;
           if (reason) fail(reason);
-          stop();
+          if (!abandoned()) stop();
         },
       });
-      if (abandoned()) return stop();
-
-      /**
-       * An earlier conversation, laid back down turn by turn ahead of anything
-       * said in this one. No `response.create` behind it: it is history to be
-       * read, not a question waiting on an answer.
-       */
-      for (const turn of earlier) call.send(historyItem(turn));
-
+      if (abandoned()) { connection.close(); return; }
+      call = connection;
+      pending = null;
+      current = connection.model ?? current;
+      currentVoice = connection.voice ?? currentVoice;
       meter.start();
       setState('listening');
     } catch (err) {
-      fail(err?.message ?? String(err));
-      stop();
+      if (!abandoned()) { fail(err?.message ?? String(err)); stop(); }
     } finally {
-      connecting = false;
+      if (pending === controller) pending = null;
     }
   }
 
   function stop() {
     generation++;
+    const controller = pending;
+    pending = null;
+    controller?.abort();
+    events?.reset();
+    events = null;
     const closing = call;
     call = null;
-    /** A note that never found a gap dies with the call it was about — it would
-     *  otherwise surface in the next one, long after it was news. */
-    notes.length = 0;
-    meter.stop();
     closing?.close();
+    meter.stop();
     micStream?.getTracks().forEach((track) => track.stop());
     audio?.close();
     if (audioEl) audioEl.srcObject = null;
-    micStream = audio = audioEl = null;
+    micStream = audio = audioEl = micAnalyser = outAnalyser = null;
     muted = false;
-    micAnalyser = outAnalyser = null;
-    events.reset();
     setState('idle');
   }
 
   function send(text) {
     const content = text.trim();
     if (!content || !call?.open) return;
-    messages.push({ role: 'user', content });
-    emit('message', { role: 'user', content });
-    call.send({
-      type: 'conversation.item.create',
-      item: { type: 'message', role: 'user', content: [{ type: 'input_text', text: content }] },
-    });
+    const message = { role: 'user', content };
+    messages.push(message);
+    emit('message', message);
+    call.send({ type: 'response.item.create', item: {
+      type: 'message', role: 'user', content: [{ type: 'input_text', text: content }],
+    } });
     call.send({ type: 'response.create' });
     setState('thinking');
   }
 
+  // A byte budget is conservative for the API's 500-token append limit.
+  function append(type, text) {
+    let chunk = '';
+    const encoder = new TextEncoder();
+    for (const char of text) {
+      if (encoder.encode(chunk + char).length > 480) {
+        call.send({ type, delegation_id: null, content: chunk });
+        chunk = '';
+      }
+      chunk += char;
+    }
+    if (chunk) call.send({ type, delegation_id: null, content: chunk });
+  }
+
   return {
-    on,
-    start,
-    stop,
-    send,
-    /**
-     * The turns of a conversation being picked up again. They are handed over
-     * on the next dial rather than now — there may be no call yet, and this is
-     * what a redial re-sends, so a voice change mid-conversation keeps it.
-     */
+    on, start, stop, send,
     get context() { return context; },
     set context(turns) { context = Array.isArray(turns) ? turns : []; },
     get messages() { return messages; },
-
-    /**
-     * Something the workspace has to say, for the model to pass on. It waits
-     * for a gap and is dropped if there is no call up — an agent that finished
-     * while nobody was talking to Marc is the panel's news, not an
-     * interruption to save up for the next conversation.
-     */
     note(text) {
-      const line = String(text ?? '').trim();
-      if (!line || !call?.open) return false;
-      notes.push(line);
-      flushNotes();
+      const content = String(text ?? '').trim();
+      if (!content || !call?.open) return false;
+      append('session.commentary.append', content);
       return true;
     },
     get connected() { return call?.open ?? false; },
-    get busy() { return events.responding; },
+    get busy() { return events?.responding ?? false; },
     get state() { return state; },
     get muted() { return muted; },
     set muted(next) {
@@ -307,9 +198,9 @@ export function createVoiceSession({ model, voice, memory } = {}) {
     set model(next) { current = next; picked++; },
     get voice() { return currentVoice; },
     set voice(next) { currentVoice = next; picked++; },
-    get stale() { return !!call && picked !== mintedPick; },
+    get stale() { return !!call && picked !== connectedPick; },
     cancel() {
-      if (events.responding) call?.send({ type: 'response.cancel' });
+      if (call?.open) append('session.instructions.append', 'Stop speaking now and listen.');
     },
   };
 }

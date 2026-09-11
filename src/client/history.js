@@ -96,7 +96,12 @@ export function createHistory({
     const content = typeof message?.content === 'string' ? message.content.trim() : '';
     if (!content) return null;
 
-    const turn = { role: message.role === 'assistant' ? 'assistant' : 'user', content, at: now() };
+    const existing = message.id && open?.messages.find((m) => m.id === message.id);
+    if (existing) {
+      Object.assign(existing, { content: message.content, fragments: message.fragments, start_ms: message.start_ms, end_ms: message.end_ms });
+      save(); changed(); return existing;
+    }
+    const turn = { ...(message.id ? { id: message.id, fragments: message.fragments, start_ms: message.start_ms, end_ms: message.end_ms } : {}), role: message.role === 'assistant' ? 'assistant' : 'user', content, at: now() };
     open ??= begin();
     if (!conversations.includes(open)) conversations.unshift(open);
     open.messages.push(turn);

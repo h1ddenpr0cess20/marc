@@ -786,3 +786,6 @@ three-d-stage {
 }
 #connectors .task-said.error { color: var(--error); }
 #connectors .empty.error { color: var(--error); }
+
+.sources { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem; max-width: 42rem; margin: .5rem auto; pointer-events: auto; }
+.sources a { color: inherit; font-size: .75rem; max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -12,8 +12,7 @@ export const KEY = 'marc.tools.v1';
  * remembers you had turned it off.
  *
  * The catalog comes from `/api/models`: the server says what exists, this says
- * which of those to use. It is empty for now — the switches are here ahead of
- * the tools they will switch.
+ * which of those to use. Hosted web search is offered by default.
  */
 export function createToolSwitches({ storage = defaultStorage(), key = KEY } = {}) {
   const listeners = new Set();

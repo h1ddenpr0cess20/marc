@@ -1,282 +1,93 @@
 import assert from 'node:assert/strict';
-import { beforeEach, describe, it } from 'node:test';
-
+import { afterEach, describe, it } from 'node:test';
 import { createEventHandler } from '../../src/client/session/events.js';
-
-function harness() {
-  const states = [];
-  const emitted = [];
-  const failures = [];
-  const messages = [];
-
-  const calls = [];
-
-  const handler = createEventHandler({
-    setState: (s) => states.push(s),
-    emit: (event, payload) => emitted.push([event, payload]),
-    fail: (message) => failures.push(message),
-    messages,
-    getModel: () => 'gpt-realtime-2.1',
-    onFunctionCall: (call) => calls.push(call),
+let handler;
+afterEach(() => handler?.reset());
+function setup(runTool = async () => ({ ok: true })) {
+  const log = [], sent = [], messages = [];
+  handler = createEventHandler({ messages, runTool,
+    setState: (state) => log.push(['state', state]),
+    emit: (type, value) => log.push([type, value]),
+    fail: (message) => log.push(['error', message]),
+    send: (event) => sent.push(event),
   });
-
-  return {
-    handler,
-    states,
-    emitted,
-    failures,
-    messages,
-    calls,
-    of: (name) => emitted.filter(([e]) => e === name).map(([, p]) => p),
-    feed: (...events) => events.forEach((e) => handler.handle(e)),
-  };
+  const response = (event, delegation_id = 'd1') => handler.handle({ type: 'response.event', delegation_id, event });
+  return { log, sent, messages, response };
 }
-
-describe('turn taking', () => {
-  let h;
-  beforeEach(() => { h = harness(); });
-
-  it('listens when speech starts and thinks when it stops', () => {
-    h.feed(
-      { type: 'input_audio_buffer.speech_started' },
-      { type: 'input_audio_buffer.speech_stopped' },
-    );
-    assert.deepEqual(h.states, ['listening', 'thinking']);
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+describe('Live events', () => {
+  it('keeps overlapping speaker fragments in stable rows', () => {
+    const { messages, log } = setup();
+    handler.handle({ type: 'session.input_transcript.delta', delta: 'Tell ', start_ms: 0, end_ms: 100 });
+    handler.handle({ type: 'session.output_transcript.delta', delta: 'Sure.', start_ms: 50, end_ms: 150 });
+    handler.handle({ type: 'session.input_transcript.delta', delta: 'me more', start_ms: 100, end_ms: 200 });
+    assert.equal(messages.length, 2);
+    assert.equal(messages[0].content, 'Tell me more');
+    assert.equal(messages[0].fragments.length, 2);
+    assert.equal(log.filter(([t]) => t === 'message')[0][1].id, log.filter(([t]) => t === 'message')[2][1].id);
   });
-
-  it('pulses once when a response is created, not per token', () => {
-    h.feed(
-      { type: 'response.created' },
-      { type: 'response.output_audio_transcript.delta', delta: 'Hello' },
-      { type: 'response.output_audio_transcript.delta', delta: '!' },
-    );
-    assert.deepEqual(h.of('pulse'), [0.32]);
+  it('does not present backend completion or text as speech', async () => {
+    const { response, log } = setup();
+    response({ type: 'response.created', response: { id: 'r1' } });
+    response({ type: 'response.output_text.delta', delta: 'private backend thought' });
+    response({ type: 'response.completed', response: { id: 'r1', output: [], usage: { input_tokens: 3 } } });
+    await tick();
+    assert.ok(!log.some(([t]) => ['text', 'caption', 'message', 'state'].includes(t)));
+    assert.equal(log.find(([t]) => t === 'backend')[1].usage.input_tokens, 3);
   });
-
-  it('speaks on the first audio frame', () => {
-    h.feed({ type: 'response.created' }, { type: 'response.output_audio.delta' });
-    assert.equal(h.states.at(-1), 'speaking');
-  });
-
-  it('returns to listening when the response is done', () => {
-    h.feed(
-      { type: 'response.created' },
-      { type: 'response.output_audio.delta' },
-      { type: 'response.done', response: {} },
-    );
-    assert.equal(h.states.at(-1), 'listening');
-  });
-});
-
-describe('event name aliases', () => {
-  const transcriptAliases = [
-    'response.output_audio_transcript.delta',
-    'response.audio_transcript.delta',
-    'response.output_text.delta',
-    'response.text.delta',
-  ];
-
-  for (const type of transcriptAliases) {
-    it(`accumulates transcript from ${type}`, () => {
-      const h = harness();
-      h.feed({ type, delta: 'Hel' }, { type, delta: 'lo!' });
-      assert.deepEqual(h.of('text'), ['Hel', 'lo!']);
-      assert.equal(h.states.at(-1), 'speaking');
-
-      h.feed({ type: 'response.done', response: {} });
-      assert.deepEqual(h.messages, [{ role: 'assistant', content: 'Hello!' }]);
+  it('waits for all function results and continues once', async () => {
+    let finish;
+    const executed = [];
+    const { response, sent } = setup(async ({ name }) => {
+      executed.push(name);
+      if (name === 'remember') await new Promise((resolve) => { finish = resolve; });
+      return { ok: true };
     });
-  }
-
-  for (const type of ['response.output_audio.delta', 'response.audio.delta']) {
-    it(`switches to speaking on ${type}`, () => {
-      const h = harness();
-      h.feed({ type });
-      assert.deepEqual(h.states, ['speaking']);
-    });
-  }
-});
-
-describe('transcripts', () => {
-  let h;
-  beforeEach(() => { h = harness(); });
-
-  it('records what the person said and pulses for it', () => {
-    h.feed({
-      type: 'conversation.item.input_audio_transcription.completed',
-      transcript: '  what are you?  ',
-    });
-    assert.deepEqual(h.messages, [{ role: 'user', content: 'what are you?' }]);
-    assert.deepEqual(h.of('user'), ['what are you?']);
-    assert.deepEqual(h.of('pulse'), [0.22]);
+    response({ type: 'response.created', response: { id: 'r1' } });
+    const item = { type: 'function_call', call_id: 'c1', name: 'remember', arguments: '{"memory":"coffee"}' };
+    response({ type: 'response.function_call_arguments.done', ...item });
+    assert.equal(executed.length, 0);
+    response({ type: 'response.output_item.done', item });
+    response({ type: 'response.output_item.done', item });
+    response({ type: 'response.output_item.done', item: { ...item, call_id: 'c2', name: 'forget' } });
+    response({ type: 'response.completed', response: { id: 'r1', output: [] } });
+    response({ type: 'response.completed', response: { id: 'r1', output: [] } });
+    assert.equal(sent.length, 0);
+    finish(); await tick();
+    assert.deepEqual(executed, ['remember', 'forget']);
+    assert.deepEqual(sent.map((e) => e.type), ['response.item.create', 'response.item.create', 'response.create']);
+    assert.equal(sent[0].item.call_id, 'c1');
   });
-
-  it('ignores an empty transcription rather than logging a blank turn', () => {
-    h.feed({ type: 'conversation.item.input_audio_transcription.completed', transcript: '   ' });
-    h.feed({ type: 'conversation.item.input_audio_transcription.completed' });
-    assert.deepEqual(h.messages, []);
-    assert.deepEqual(h.of('user'), []);
+  it('returns an error for malformed arguments without executing', async () => {
+    let ran = false;
+    const { response, sent } = setup(async () => { ran = true; });
+    response({ type: 'response.created', response: { id: 'r1' } });
+    response({ type: 'response.output_item.done', item: { type: 'function_call', call_id: 'c1', name: 'remember', arguments: '{' } });
+    response({ type: 'response.completed', response: { id: 'r1', output: [] } });
+    await tick();
+    assert.equal(ran, false);
+    assert.match(sent[0].item.output, /Invalid JSON/);
   });
-
-  it('does not record an assistant message for a turn that said nothing', () => {
-    h.feed({ type: 'response.created' }, { type: 'response.done', response: {} });
-    assert.deepEqual(h.messages, []);
+  it('drops in-flight results after disconnect', async () => {
+    let finish;
+    const { response, sent } = setup(() => new Promise((resolve) => { finish = resolve; }));
+    response({ type: 'response.created', response: { id: 'r1' } });
+    response({ type: 'response.output_item.done', item: { type: 'function_call', call_id: 'c1', name: 'remember', arguments: '{}' } });
+    response({ type: 'response.completed', response: { id: 'r1', output: [] } });
+    handler.reset(); finish({ ok: true }); await tick();
+    assert.deepEqual(sent, []);
   });
-
-  it('keeps what Marc got out before the person barged in', () => {
-    h.feed(
-      { type: 'response.output_text.delta', delta: 'I was saying' },
-      { type: 'input_audio_buffer.speech_started' },
-      { type: 'response.done', response: { status: 'cancelled' } },
-    );
-    assert.deepEqual(h.messages, [{ role: 'assistant', content: 'I was saying' }]);
-  });
-
-  it('logs an interrupted turn once, not again at response.done', () => {
-    h.feed(
-      { type: 'response.output_text.delta', delta: 'I was saying' },
-      { type: 'input_audio_buffer.speech_started' },
-      { type: 'response.done', response: { status: 'cancelled' } },
-      { type: 'response.created' },
-      { type: 'response.output_text.delta', delta: 'You were saying?' },
-      { type: 'response.done', response: {} },
-    );
-    assert.deepEqual(h.messages, [
-      { role: 'assistant', content: 'I was saying' },
-      { role: 'assistant', content: 'You were saying?' },
-    ]);
-  });
-});
-
-describe('completion and failure', () => {
-  let h;
-  beforeEach(() => { h = harness(); });
-
-  it('reports the model and usage when done', () => {
-    h.feed({ type: 'response.done', response: { usage: { total_tokens: 42 } } });
-    assert.deepEqual(h.of('done'), [{ model: 'gpt-realtime-2.1', usage: { total_tokens: 42 } }]);
-  });
-
-  it('surfaces a failed response and still returns to listening', () => {
-    h.feed({
-      type: 'response.done',
-      response: { status: 'failed', status_details: { error: { message: 'the model gave up' } } },
-    });
-    assert.deepEqual(h.failures, ['the model gave up']);
-    assert.equal(h.states.at(-1), 'listening');
-  });
-
-  it('has something to say about a failure with no message', () => {
-    h.feed({ type: 'response.done', response: { status: 'failed' } });
-    assert.deepEqual(h.failures, ['the response failed']);
-  });
-
-  it('survives a response.done with no response object at all', () => {
-    assert.doesNotThrow(() => h.feed({ type: 'response.done' }));
-    assert.equal(h.states.at(-1), 'listening');
-  });
-
-  it('forwards a transport error', () => {
-    h.feed({ type: 'error', error: { message: 'session expired' } });
-    assert.deepEqual(h.failures, ['session expired']);
-  });
-
-  it('falls back to a generic message for a shapeless error', () => {
-    h.feed({ type: 'error' });
-    assert.deepEqual(h.failures, ['realtime error']);
-  });
-
-  it('ignores event types it does not model', () => {
-    const h2 = harness();
-    h2.feed({ type: 'rate_limits.updated' }, { type: 'session.created' });
-    assert.deepEqual(h2.states, []);
-    assert.deepEqual(h2.emitted, []);
-  });
-});
-
-describe('responding', () => {
-  it('tracks whether a response is in flight, which is what gates barge-in', () => {
-    const h = harness();
-    assert.equal(h.handler.responding, false);
-
-    h.feed({ type: 'response.created' });
-    assert.equal(h.handler.responding, true);
-
-    h.feed({ type: 'response.done', response: {} });
-    assert.equal(h.handler.responding, false);
-  });
-
-  it('clears both response state and transcript on reset', () => {
-    const h = harness();
-    h.feed({ type: 'response.created' }, { type: 'response.output_text.delta', delta: 'half a' });
-
-    h.handler.reset();
-    assert.equal(h.handler.responding, false);
-
-    h.feed({ type: 'response.done', response: {} });
-    assert.deepEqual(h.messages, []);
-  });
-});
-
-describe('function calls', () => {
-  const CALL = {
-    type: 'response.function_call_arguments.done',
-    call_id: 'call_1',
-    name: 'remember',
-    arguments: '{"memory":"drinks his coffee black"}',
-  };
-
-  it('hands the parsed arguments over once', () => {
-    const h = harness();
-    h.feed(CALL);
-
-    assert.deepEqual(h.calls, [
-      { call_id: 'call_1', name: 'remember', args: { memory: 'drinks his coffee black' } },
-    ]);
-  });
-
-  it('runs a call once however many events carry it', () => {
-    const h = harness();
-    const item = { type: 'function_call', call_id: 'call_1', name: 'remember', arguments: '{}' };
-    h.feed(
-      CALL,
-      { type: 'response.output_item.done', item },
-      { type: 'response.done', response: { output: [item] } },
-    );
-
-    assert.equal(h.calls.length, 1);
-  });
-
-  it('picks the call up from an output item alone', () => {
-    const h = harness();
-    h.feed({
-      type: 'response.output_item.done',
-      item: { type: 'function_call', call_id: 'call_2', name: 'forget', arguments: '{"keyword":"dog"}' },
-    });
-
-    assert.deepEqual(h.calls, [{ call_id: 'call_2', name: 'forget', args: { keyword: 'dog' } }]);
-  });
-
-  it('treats unparseable or missing arguments as none', () => {
-    const h = harness();
-    h.feed({ ...CALL, arguments: '{not json' }, { ...CALL, call_id: 'call_3', arguments: undefined });
-
-    assert.deepEqual(h.calls.map((c) => c.args), [{}, {}]);
-  });
-
-  it('ignores a call with no id or no name', () => {
-    const h = harness();
-    h.feed({ ...CALL, call_id: undefined }, { ...CALL, name: undefined });
-
-    assert.deepEqual(h.calls, []);
-  });
-
-  it('lets the same call id through again on a fresh call', () => {
-    const h = harness();
-    h.feed(CALL);
-    h.handler.reset();
-    h.feed(CALL);
-
-    assert.equal(h.calls.length, 2);
+  it('surfaces citations, cumulative usage and backend errors', async () => {
+    const { response, log } = setup();
+    response({ type: 'response.created', response: { id: 'r1' } });
+    response({ type: 'response.web_search_call.searching' });
+    response({ type: 'response.output_item.done', item: { type: 'message', content: [{ annotations: [{ type: 'url_citation', title: 'Source', url: 'https://example.com' }] }] } });
+    handler.handle({ type: 'session.usage.updated', usage: { seconds: 12 } });
+    handler.handle({ type: 'session.closed', usage: { seconds: 14 } });
+    response({ type: 'response.failed', response: { error: { message: 'lookup failed' } } });
+    await tick();
+    assert.ok(log.some(([t]) => t === 'source'));
+    assert.deepEqual(log.filter(([t]) => t === 'usage').map(([, v]) => v), [{ seconds: 12, final: false }, { seconds: 14, final: true }]);
+    assert.ok(log.some(([t, v]) => t === 'error' && v === 'lookup failed'));
   });
 });

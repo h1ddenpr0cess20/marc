@@ -37,6 +37,11 @@ export function createHud(root = document) {
   const captionEl = root.querySelector('#caption');
   const youEl = root.querySelector('#you');
 
+  const sourcesEl = captionEl.ownerDocument.createElement('div');
+  sourcesEl.className = 'sources';
+  sourcesEl.setAttribute('aria-label', 'Web sources');
+  captionEl.after(sourcesEl);
+  const sources = new Set();
   let turn = '';
 
   return {
@@ -67,6 +72,20 @@ export function createHud(root = document) {
       turn = '';
       captionEl.replaceChildren();
       captionEl.classList.remove('visible', 'error');
+    },
+
+    showSource({ url, title }) {
+      let parsed;
+      try { parsed = new URL(url); } catch { return; }
+      if (!['https:', 'http:'].includes(parsed.protocol) || sources.has(parsed.href)) return;
+      sources.add(parsed.href);
+      const link = captionEl.ownerDocument.createElement('a');
+      link.href = parsed.href;
+      link.textContent = title || parsed.hostname;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      sourcesEl.append(link);
+      while (sourcesEl.childElementCount > 6) sourcesEl.firstElementChild.remove();
     },
 
     showError(message) {

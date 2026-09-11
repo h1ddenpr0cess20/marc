@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
-import { fetchCatalog, fetchClientSecret } from '../../src/client/api.js';
+import { fetchCatalog, createLiveSession } from '../../src/client/api.js';
 import { withGlobals } from '../helpers/dom.js';
 
 let restore = () => {};
@@ -46,21 +46,21 @@ describe('fetchCatalog', () => {
   });
 });
 
-describe('fetchClientSecret', () => {
+describe('createLiveSession', () => {
   it('posts the requested model and voice as JSON', async () => {
-    const calls = stubFetch(() => ({ body: { value: 'ek_x', model: 'gpt-realtime-mini', voice: 'cedar' } }));
+    const calls = stubFetch(() => ({ body: { session: { id: 'live_x' }, transport: { sdp: 'answer' } } }));
 
-    const secret = await fetchClientSecret({ model: 'gpt-realtime-mini', voice: 'cedar' });
+    const secret = await createLiveSession({ model: 'gpt-live-1', voice: 'vesper', sdp: 'offer' });
 
     assert.equal(calls[0].url, '/api/session');
     assert.equal(calls[0].init.method, 'POST');
     assert.equal(calls[0].init.headers['content-type'], 'application/json');
-    assert.deepEqual(JSON.parse(calls[0].init.body), { model: 'gpt-realtime-mini', voice: 'cedar' });
-    assert.equal(secret.value, 'ek_x');
+    assert.deepEqual(JSON.parse(calls[0].init.body), { model: 'gpt-live-1', voice: 'vesper', sdp: 'offer' });
+    assert.equal(secret.session.id, 'live_x');
   });
 
   it('surfaces a mint failure', async () => {
     stubFetch(() => ({ status: 502, body: { error: 'Incorrect API key provided' } }));
-    await assert.rejects(() => fetchClientSecret({}), /Incorrect API key provided/);
+    await assert.rejects(() => createLiveSession({}), /Incorrect API key provided/);
   });
 });

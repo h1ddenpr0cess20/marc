@@ -1,86 +1,106 @@
-const REALTIME_URL = 'https://api.openai.com/v1/realtime/calls';
+import { createLiveSession } from '../api.js';
 
-const CHANNEL_TIMEOUT = 15_000;
-
-function channelOpen(pc, channel) {
-  let settle;
-  const promise = new Promise((resolve, reject) => {
-    settle = (err) => (err ? reject(err) : resolve());
-  });
-
-  const timer = setTimeout(
-    () => done(new Error('the events channel never opened')),
-    CHANNEL_TIMEOUT,
-  );
-  const done = (err) => {
-    clearTimeout(timer);
-    settle(err);
-  };
-
-  if (channel.readyState === 'open') done();
-
-  channel.addEventListener('open', () => done());
-  channel.addEventListener('error', () => done(new Error('the events channel failed')));
-  pc.addEventListener('connectionstatechange', () => {
-    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-      done(new Error('the call dropped before it was ready'));
+/** Live uses a server-side SDP exchange, then waits for session.started. */
+export async function connect({ options, micStream, onEvent, onTrack, onClose, signal }) {
+  const pc = new RTCPeerConnection();
+  const channel = pc.createDataChannel('oai-events');
+  let started = false;
+  let closing = false;
+  let finalized = false;
+  let closeTimer;
+  let startTimer;
+  let resolveStart;
+  let rejectStart;
+  const ready = new Promise((resolve, reject) => { resolveStart = resolve; rejectStart = reject; });
+  ready.catch(() => {});
+  function cleanup() {
+    clearTimeout(closeTimer);
+    clearTimeout(startTimer);
+    channel.close();
+    pc.close();
+  }
+  function broken(message) {
+    if (finalized) return;
+    finalized = true;
+    rejectStart(new Error(message));
+    cleanup();
+    onClose(message);
+  }
+  signal?.addEventListener('abort', () => broken('connection cancelled'), { once: true });
+  pc.ontrack = (event) => onTrack(event.streams[0]);
+  pc.addTrack(micStream.getAudioTracks()[0], micStream);
+  channel.addEventListener('message', ({ data }) => {
+    let event;
+    try { event = JSON.parse(data); } catch { return; }
+    if (event.type === 'session.started') {
+      started = true;
+      clearTimeout(startTimer);
+      resolveStart();
+    }
+    if (event.type === 'error' && !started) {
+      broken(event.error?.message ?? 'Live session startup failed');
+      return;
+    }
+    onEvent(event);
+    if (event.type === 'session.closed') {
+      finalized = true;
+      rejectStart(new Error('Live session ended before startup'));
+      cleanup();
+      onClose(null);
     }
   });
-
-  return { promise, cancel: () => done() };
-}
-
-export async function connect({ secret, micStream, onEvent, onTrack, onClose }) {
-  const pc = new RTCPeerConnection();
-  let ready;
-
+  channel.addEventListener('close', () => {
+    if (!finalized) broken('Live connection ended without final usage');
+  });
+  channel.addEventListener('error', () => broken('Live events channel failed'));
+  pc.addEventListener('connectionstatechange', () => {
+    if (['failed', 'closed', 'disconnected'].includes(pc.connectionState) && !finalized) {
+      broken('Live connection lost; final usage is unconfirmed');
+    }
+  });
   try {
-    pc.ontrack = (e) => onTrack(e.streams[0]);
-    pc.addTrack(micStream.getAudioTracks()[0], micStream);
-
-    const channel = pc.createDataChannel('oai-events');
-    channel.addEventListener('message', (e) => {
-      try {
-        onEvent(JSON.parse(e.data));
-      } catch {
-      }
-    });
-
-    ready = channelOpen(pc, channel);
-
-    pc.addEventListener('connectionstatechange', () => {
-      if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
-        onClose(pc.connectionState === 'failed' ? 'the call dropped' : null);
-      }
-    });
-
     await pc.setLocalDescription(await pc.createOffer());
-    const answer = await fetch(REALTIME_URL, {
-      method: 'POST',
-      body: pc.localDescription.sdp,
-      headers: { authorization: `Bearer ${secret}`, 'content-type': 'application/sdp' },
-    });
-    if (!answer.ok) throw new Error(`realtime handshake failed (${answer.status})`);
-    await pc.setRemoteDescription({ type: 'answer', sdp: await answer.text() });
-
-    await ready.promise;
-
+    if (pc.iceGatheringState !== 'complete') {
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => finish(new Error('ICE gathering timed out')), 10_000);
+        function finish(err) {
+          clearTimeout(timer);
+          pc.removeEventListener('icegatheringstatechange', changed);
+          signal?.removeEventListener('abort', aborted);
+          if (err) reject(err); else resolve();
+        }
+        function changed() { if (pc.iceGatheringState === 'complete') finish(); }
+        function aborted() { finish(new Error('connection cancelled')); }
+        pc.addEventListener('icegatheringstatechange', changed);
+        signal?.addEventListener('abort', aborted, { once: true });
+        changed();
+      });
+    }
+    if (signal?.aborted) throw new Error('connection cancelled');
+    const result = await createLiveSession({ ...options, sdp: pc.localDescription.sdp }, signal);
+    if (signal?.aborted) throw new Error('connection cancelled');
+    startTimer = setTimeout(() => broken('Live session did not start'), 15_000);
+    await pc.setRemoteDescription({ type: 'answer', sdp: result.transport.sdp });
+    await ready;
     return {
-      pc,
-      get open() { return channel.readyState === 'open'; },
-      send(message) {
-        if (channel.readyState !== 'open') return false;
-        channel.send(JSON.stringify(message));
+      model: result.model, voice: result.voice,
+      get open() { return started && !closing && !finalized && channel.readyState === 'open'; },
+      send(event) {
+        if (!this.open) return false;
+        channel.send(JSON.stringify(event));
         return true;
       },
       close() {
-        channel.close();
-        pc.close();
+        if (closing || finalized) return;
+        closing = true;
+        if (channel.readyState !== 'open') return broken('Live close could not be confirmed');
+        channel.send(JSON.stringify({ type: 'session.close' }));
+        closeTimer = setTimeout(() => broken('Live close timed out; final usage is unconfirmed'), 15_000);
       },
     };
   } catch (err) {
-    ready?.cancel();
-    pc.close();
+    finalized = true;
+    cleanup();
     throw err;
   }
 }

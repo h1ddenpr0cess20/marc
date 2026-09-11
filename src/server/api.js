@@ -74,7 +74,7 @@ export function createApiMiddleware(config, connectors = null) {
       if (path === '/api/models' && req.method === 'GET') {
         if (!config.apiKey) return sendJSON(res, 500, { error: 'OPENAI_API_KEY is not set' });
         return sendJSON(res, 200, {
-          models: await openai.listRealtimeModels(),
+          models: await openai.listModels(),
           model: config.defaultModel,
           voices: config.voices,
           voice: config.defaultVoice,
@@ -88,7 +88,7 @@ export function createApiMiddleware(config, connectors = null) {
            * edits files on this machine is switched on in its own panel,
            * against the server, for everyone.
            */
-          switches: [],
+          switches: config.webSearch ? [{ name: 'web_search', label: 'web search' }] : [],
         });
       }
 
@@ -100,7 +100,10 @@ export function createApiMiddleware(config, connectors = null) {
         } catch {
           return sendJSON(res, 400, { error: 'malformed request body' });
         }
-        return sendJSON(res, 200, await openai.mintClientSecret(payload));
+        if (typeof payload.sdp !== 'string' || !payload.sdp.trim()) {
+          return sendJSON(res, 400, { error: 'An SDP offer is required' });
+        }
+        return sendJSON(res, 200, await openai.createLiveSession(payload));
       }
 
       if (connectors) {
