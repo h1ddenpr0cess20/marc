@@ -17,7 +17,8 @@ describe('GPT-Live backend', () => {
   it('offers text models from GPT-5 on as backends, the configured one first', async () => {
     const { client } = await setup({ OPENAI_BACKEND_MODEL: 'gpt-5.6-luna' });
     const ids = (await client.catalog()).backendModels.map((m) => m.id);
-    assert.deepEqual(ids, ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-6']);
+    assert.deepEqual(ids, ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-6'],
+      'dated snapshots and codex builds are the same model again, or not for this');
   });
   it('keeps a configured backend the key cannot list in the picker', async () => {
     const { client } = await setup({ OPENAI_BACKEND_MODEL: 'gpt-5.9-unreleased' });
@@ -32,7 +33,9 @@ describe('GPT-Live backend', () => {
     assert.equal(backend(), 'gpt-5.6-luna');
     assert.equal(picked.backendModel, 'gpt-5.6-luna');
 
-    for (const model of ['gpt-4o', 'gpt-live-1', 'tts-realtime', 'text-embedding-3-large', 'not-a-model', 42]) {
+    const refused = ['gpt-4o', 'gpt-live-1', 'tts-realtime', 'text-embedding-3-large',
+      'gpt-5.6-terra-2026-08-20', 'gpt-5.6-codex', 'gpt-5.6-codex-mini', 'not-a-model', 42];
+    for (const model of refused) {
       await client.createLiveSession({ sdp: 'offer', backendModel: model });
       assert.equal(backend(), 'gpt-5.6-terra', `${model} was delegated to as-is`);
     }

@@ -15,8 +15,19 @@ const LIVE_MODEL = /^gpt-live-[a-z0-9.-]+$/;
 const BACKEND_MODEL = /^gpt-(?:[5-9]|[1-9][0-9]+)(?:[.-][a-z0-9.-]+)?$/;
 const NOT_BACKEND = /live|realtime|audio|transcribe|tts|image|embedding|moderation|search/;
 
+/**
+ * Two more kinds the picker is better off without: a dated snapshot, which is
+ * the model above it under a second name, and a Codex build, which is for
+ * writing code rather than for answering the person in the call. Named
+ * outright in `OPENAI_BACKEND_MODEL` either still runs — that one is offered
+ * and minted whatever it is.
+ */
+const DATED = /-\d{4}-\d{2}-\d{2}$/;
+const CODEX = /(?:^|-)codex(?:-|$)/;
+
 export function isBackendModel(id) {
-  return typeof id === 'string' && BACKEND_MODEL.test(id) && !NOT_BACKEND.test(id);
+  return typeof id === 'string'
+    && BACKEND_MODEL.test(id) && !NOT_BACKEND.test(id) && !DATED.test(id) && !CODEX.test(id);
 }
 
 /**
