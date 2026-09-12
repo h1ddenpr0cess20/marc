@@ -30,6 +30,9 @@ export function createEventHandler({ setState, emit, fail, messages, runTool, se
     emit('message', { ...row, fragments: [...row.fragments] });
     if (role === 'user') emit('user', row.content);
     else emit('caption', row.content);
+    // The squash the egg does on speech: a nudge per fragment, on top of the
+    // level meter. Marc's own voice hits harder than the one he is listening to.
+    emit('pulse', role === 'assistant' ? 0.32 : 0.22);
     setState(role === 'assistant' ? 'speaking' : 'listening');
     clearTimeout(activityTimer);
     activityTimer = setTimeout(() => { if (active) setState(busy ? 'thinking' : 'listening'); }, 1500);

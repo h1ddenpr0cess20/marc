@@ -44,6 +44,45 @@ describe('recording', () => {
     assert.equal(conversation.voice, 'cedar');
   });
 
+  it('grows a spoken row in place instead of logging it once per fragment', async () => {
+    const { history } = harness({ coalesceMs: 0 });
+    history.begin();
+    history.append({ id: 'row-1', role: 'assistant', content: 'I am' });
+    history.append({ id: 'row-1', role: 'assistant', content: 'I am an egg.' });
+    history.append({ id: 'row-2', role: 'user', content: 'prove it' });
+
+    const [conversation] = history.conversations;
+    assert.deepEqual(conversation.messages.map((m) => m.content), ['I am an egg.', 'prove it']);
+  });
+
+  it('holds the writes a growing row would otherwise cost, and settles them', async () => {
+    const writes = [];
+    const storage = fakeStorage();
+    const counted = { ...storage, setItem: (k, v) => { writes.push(k); storage.setItem(k, v); } };
+    const history = createHistory({ storage: counted, now: ticker(), coalesceMs: 5 });
+
+    history.begin();
+    history.append({ id: 'row-1', role: 'assistant', content: 'I' });
+    const afterFirst = writes.length;
+    for (const content of ['I am', 'I am an', 'I am an egg.']) {
+      history.append({ id: 'row-1', role: 'assistant', content });
+    }
+    assert.equal(writes.length, afterFirst, 'a row that grew wrote again before settling');
+
+    history.end();
+    assert.ok(writes.length > afterFirst, 'the held write never landed');
+    const stored = JSON.parse(counted.getItem(KEY));
+    assert.deepEqual(stored.conversations[0].messages.map((m) => m.content), ['I am an egg.']);
+  });
+
+  it('trims a row it grows, the way it trims one it adds', () => {
+    const { history } = harness({ coalesceMs: 0 });
+    history.begin();
+    history.append({ id: 'row-1', role: 'assistant', content: 'hm' });
+    history.append({ id: 'row-1', role: 'assistant', content: '  hm, an egg.  ' });
+    assert.equal(history.conversations[0].messages[0].content, 'hm, an egg.');
+  });
+
   it('writes a conversation nobody spoke in nowhere', () => {
     const { storage, history } = harness();
     history.begin({ voice: 'cedar' });

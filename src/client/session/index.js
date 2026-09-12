@@ -111,8 +111,15 @@ export function createVoiceSession({ model = 'gpt-live-1', voice, memory, toolsO
           audioEl.play?.().catch(() => fail('Audio playback was blocked; allow sound and reconnect.'));
         },
         onClose: (reason) => {
+          /**
+           * A call the page has already walked away from closes on its own
+           * terms — a hang-up waiting out its final usage, a redial, a cancel
+           * part-way through connecting. Whatever it says on the way down is
+           * not news to whoever asked for it, so it is not raised at them.
+           */
+          if (abandoned()) return;
           if (reason) fail(reason);
-          if (!abandoned()) stop();
+          stop();
         },
       });
       if (abandoned()) { connection.close(); return; }

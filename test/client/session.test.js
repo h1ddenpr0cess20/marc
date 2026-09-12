@@ -58,6 +58,25 @@ describe('Live voice session', () => {
     assert.equal(JSON.parse(channel.sent[0].item.output).remembered, 'coffee');
     assert.equal(channel.sent[1].type, 'response.create');
   });
+  it('stays quiet about a call the page already hung up on', async () => {
+    setup(); await session.start();
+    const errors = []; session.on('error', (e) => errors.push(e.message));
+    session.stop();
+    /** The close never confirms and the connection gives up underneath it. */
+    media.peers[0].drop('failed');
+    await tick();
+    assert.deepEqual(errors, []);
+    assert.equal(session.state, 'idle');
+  });
+  it('still reports a call that drops on its own', async () => {
+    setup(); await session.start();
+    const errors = []; session.on('error', (e) => errors.push(e.message));
+    media.peers[0].drop('failed');
+    await tick();
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /connection lost/);
+    assert.equal(session.state, 'idle');
+  });
   it('mutes capture and drains final usage on hangup', async () => {
     setup(); await session.start();
     session.muted = true;

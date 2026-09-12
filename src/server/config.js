@@ -1,7 +1,7 @@
 import { AGENT_NAMES, AGENTS, splitArgs } from './connectors/agents.js';
 
 export const KNOWN_VOICES = Object.freeze([
-  'vesper', 'ripple', 'stone', 'meridian', 'tempo', 'beacon', 'cinder',
+  'ripple', 'vesper', 'stone', 'meridian', 'tempo', 'beacon', 'cinder',
 ]);
 
 function flag(value, fallback) {

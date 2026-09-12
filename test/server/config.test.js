@@ -9,7 +9,7 @@ describe('loadConfig', () => {
     assert.equal(config.port, 5173);
     assert.equal(config.baseUrl, 'https://api.openai.com/v1');
     assert.equal(config.defaultModel, 'gpt-live-1');
-    assert.equal(config.defaultVoice, 'vesper');
+    assert.equal(config.defaultVoice, 'ripple');
     assert.deepEqual(config.voices, [...KNOWN_VOICES]);
     assert.equal(config.apiKey, undefined);
   });

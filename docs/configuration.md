@@ -6,7 +6,7 @@ Both `npm run dev` and `npm start` read `.env`.
 |---|---|---|
 | `OPENAI_API_KEY` | — | Required. Stays in the Node process. |
 | `MEMORY` | `true` | The `remember` and `forget` tools, and the memory block in the prompt |
-| `OPENAI_VOICE` | `vesper` | Initial voice: vesper, ripple, stone, meridian, tempo, beacon, cinder |
+| `OPENAI_VOICE` | `ripple` | Initial voice: ripple, vesper, stone, meridian, tempo, beacon, cinder |
 | `OPENAI_LIVE_MODEL` | `gpt-live-1` | Preselected GPT-Live model |
 | `OPENAI_BACKEND_MODEL` | `gpt-5.6-terra` | Responses backend for reasoning and tools |
 | `WEB_SEARCH` | `true` | Hosted web search; browsers may disable it |
@@ -24,7 +24,7 @@ Both `npm run dev` and `npm start` read `.env`.
 | `CODEX_SANDBOX` | `workspace-write` | Its sandbox policy |
 
 The picker lists GPT-Live models accessible to your API key. Marc defaults to
-Vesper. An authorized voice outside the list can be set with `OPENAI_VOICE`.
+Ripple. An authorized voice outside the list can be set with `OPENAI_VOICE`.
 Changing voice or model reconnects with recent history.
 
 Replace `OPENAI_REALTIME_MODEL` in existing `.env` files with
@@ -73,7 +73,9 @@ they are not supported by Live's managed Responses configuration.
 
 The tools panel stores each browser's search preference and reconnects the call
 when it changes. `WEB_SEARCH=false` disables search server-wide. Source links
-appear below spoken captions. Backend text is not presented as speech.
+appear below spoken captions — each cited page once, the oldest giving way past
+six, and cleared along with the caption they belong to. Backend text is not
+presented as speech.
 
 Official contracts: [Live tools](https://developers.openai.com/api/docs/guides/live-delegation),
 [session configuration](https://developers.openai.com/api/docs/guides/live-conversations),

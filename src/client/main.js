@@ -182,16 +182,16 @@ session.on('busy', () => {
 
 session.on('level', (level) => marc.setLevel(level));
 session.on('pulse', (weight) => marc.pulse(weight));
-session.on('text', (chunk) => {
-  hud.appendCaption(chunk);
-  armIdleMute();
-});
 session.on('user', (text) => {
   hud.showUser(text);
   armIdleMute();
 });
 
-session.on('caption', (text) => { hud.clearCaption(); hud.appendCaption(text); });
+/** A spoken row arrives whole every time it grows, so it replaces the caption. */
+session.on('caption', (text) => {
+  hud.setCaption(text);
+  armIdleMute();
+});
 session.on('source', (source) => hud.showSource(source));
 
 session.on('message', (message) => history.append(message));

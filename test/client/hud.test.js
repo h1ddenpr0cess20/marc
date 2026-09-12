@@ -132,4 +132,72 @@ describe('createHud', () => {
       assert.equal(page.$('#caption').textContent, 'second');
     });
   });
+
+  describe('the spoken row', () => {
+    it('replaces the caption rather than repeating what grew', () => {
+      hud.setCaption('I am');
+      hud.setCaption('I am an egg.');
+      assert.equal(page.$('#caption').textContent, 'I am an egg.');
+      assert.ok(page.$('#caption').classList.contains('visible'));
+    });
+
+    it('drops the error state the way appending does', () => {
+      hud.showError('the call dropped');
+      hud.setCaption('back');
+      assert.ok(!page.$('#caption').classList.contains('error'));
+      assert.equal(page.$('#caption').textContent, 'back');
+    });
+  });
+
+  describe('web sources', () => {
+    const link = (url, title) => hud.showSource({ url, title });
+    const shown = () => page.$$('.sources a').map((a) => a.textContent);
+
+    it('lists each source once, as a link that opens away from the page', () => {
+      link('https://example.com/a', 'A study');
+      link('https://example.com/a', 'A study');
+      assert.deepEqual(shown(), ['A study']);
+
+      const anchor = page.$('.sources a');
+      assert.equal(anchor.href, 'https://example.com/a');
+      assert.equal(anchor.target, '_blank');
+      assert.equal(anchor.rel, 'noopener noreferrer');
+    });
+
+    it('falls back to the host when the citation has no title', () => {
+      link('https://news.example.org/piece', '');
+      assert.deepEqual(shown(), ['news.example.org']);
+    });
+
+    it('refuses anything that is not a web address', () => {
+      link('javascript:alert(1)', 'click me');
+      link('not a url at all', 'nor this');
+      assert.deepEqual(shown(), []);
+    });
+
+    it('sheds the oldest past the limit, and can show it again later', () => {
+      for (let i = 0; i < 8; i += 1) link(`https://example.com/${i}`, `source ${i}`);
+      assert.deepEqual(shown(), ['source 2', 'source 3', 'source 4', 'source 5', 'source 6', 'source 7']);
+
+      /** Trimmed is not the same as cited: a later answer may cite it again. */
+      link('https://example.com/0', 'source 0');
+      assert.ok(shown().includes('source 0'));
+    });
+
+    it('goes with the answer it belongs to when the caption is cleared', () => {
+      link('https://example.com/a', 'A study');
+      hud.clearCaption();
+      assert.deepEqual(shown(), []);
+
+      link('https://example.com/a', 'A study');
+      assert.deepEqual(shown(), ['A study']);
+    });
+
+    it('survives a caption that grows, which clears nothing', () => {
+      link('https://example.com/a', 'A study');
+      hud.setCaption('Well,');
+      hud.setCaption('Well, it says this.');
+      assert.deepEqual(shown(), ['A study']);
+    });
+  });
 });

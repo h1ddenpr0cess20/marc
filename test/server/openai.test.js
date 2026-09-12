@@ -22,7 +22,7 @@ describe('GPT-Live backend', () => {
     assert.deepEqual(req.body.transport, { type: 'webrtc', sdp: 'offer' });
     const s = req.body.session;
     assert.equal(s.model, 'gpt-live-1');
-    assert.equal(s.audio.output.voice, 'vesper');
+    assert.equal(s.audio.output.voice, 'ripple');
     assert.equal(s.audio.input, undefined);
     assert.equal(s.type, undefined);
     assert.equal(s.delegation.responses.model, 'gpt-5.6-terra');

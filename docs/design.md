@@ -43,7 +43,9 @@ Nested `response.event` envelopes carry backend work. Completed function items
 are collected before the terminal response event, executed once, and all outputs
 are submitted through `response.item.create` before one `response.create`
 continuation. Late results from disconnected calls are discarded. Backend output
-is not spoken-caption text; its URL annotations become clickable sources.
+is not spoken-caption text; its URL annotations become clickable sources under
+the caption, deduplicated, the oldest giving way past six, and cleared with the
+caption they belong to.
 
 ## States
 
@@ -129,23 +131,32 @@ local changes, listed at the top of the file — re-copying it drops them.
 
 ## The transport seam
 
-`session/index.js` exposes `on`, `start`, `stop`, `send`, `cancel`, `context`,
-`messages`, `connected`, `busy`, `stale`, `state`, `muted`, `model`, `voice` —
-and emits:
+`session/index.js` exposes `on`, `start`, `stop`, `send`, `note`, `cancel`,
+`context`, `messages`, `connected`, `busy`, `stale`, `state`, `muted`, `model`,
+`voice` — and emits:
 
 ```
-'state'   listening | thinking | speaking | idle
-'text'    a chunk of assistant transcript
+'state'   connecting | listening | thinking | speaking | idle
+'caption' the assistant's spoken row so far, whole — it replaces, not appends
+'user'    the person's spoken row so far, whole
+'source'  a url_citation the backend attached to what it answered
 'tool'    a label while a tool works, or null
 'memory'  the result of a remember/forget the model just called
-'user'    a completed transcript of what the person said
+'task'    a coding-agent task as it was dispatched, checked or stopped
 'level'   0..1 sustained amplitude, per frame
 'pulse'   0..1 transient, one per discrete event
-'message' a completed turn, { role, content } — what the log stores
-'busy'    whether a response is in flight
-'done'    { model, usage }
+'message' a row as it stands, { id, role, content, fragments } — what the log stores
+'busy'    whether a backend response is in flight
+'usage'   cumulative voice usage; `final` on the last one
+'backend' a delegated response that settled, with its own usage
 'error'   { message }
 ```
+
+A spoken row grows: `caption`, `user` and `message` are re-emitted with the
+whole row each time a fragment lands in it, identified by a stable `id`. The HUD
+replaces what it is showing, and the log rewrites that row rather than adding
+one. Those rewrites are held briefly before the log is serialised, so a sentence
+costs one write instead of one per word; ending a call settles what is held.
 
 Marc takes audio-shaped input:
 

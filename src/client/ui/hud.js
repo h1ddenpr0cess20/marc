@@ -32,6 +32,9 @@ function render(text, into) {
   return into;
 }
 
+/** How many source links sit under a caption before the oldest gives way. */
+const SOURCE_LIMIT = 6;
+
 export function createHud(root = document) {
   const statusEl = root.querySelector('#status');
   const captionEl = root.querySelector('#caption');
@@ -43,6 +46,14 @@ export function createHud(root = document) {
   captionEl.after(sourcesEl);
   const sources = new Set();
   let turn = '';
+
+  function draw() {
+    captionEl.classList.remove('error');
+    captionEl.classList.add('visible');
+    captionEl.replaceChildren();
+    render(turn, captionEl);
+    captionEl.scrollTop = captionEl.scrollHeight;
+  }
 
   return {
     setState(state) {
@@ -61,17 +72,27 @@ export function createHud(root = document) {
 
     appendCaption(chunk) {
       turn += chunk;
-      captionEl.classList.remove('error');
-      captionEl.classList.add('visible');
-      captionEl.replaceChildren();
-      render(turn, captionEl);
-      captionEl.scrollTop = captionEl.scrollHeight;
+      draw();
+    },
+
+    /**
+     * The whole caption at once. A spoken row is re-sent in full on every
+     * fragment, so it is replaced rather than appended to — appending would
+     * repeat everything said so far, and clearing first would take the sources
+     * down with it.
+     */
+    setCaption(text) {
+      turn = text;
+      draw();
     },
 
     clearCaption() {
       turn = '';
       captionEl.replaceChildren();
       captionEl.classList.remove('visible', 'error');
+      /** The links belong to the answer above them, and it is gone. */
+      sources.clear();
+      sourcesEl.replaceChildren();
     },
 
     showSource({ url, title }) {
@@ -85,7 +106,13 @@ export function createHud(root = document) {
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       sourcesEl.append(link);
-      while (sourcesEl.childElementCount > 6) sourcesEl.firstElementChild.remove();
+      /** Forgetting a trimmed link as well as removing it, so a later answer
+       *  that cites it again still gets to show it. */
+      while (sourcesEl.childElementCount > SOURCE_LIMIT) {
+        const dropped = sourcesEl.firstElementChild;
+        sources.delete(dropped.href);
+        dropped.remove();
+      }
     },
 
     showError(message) {

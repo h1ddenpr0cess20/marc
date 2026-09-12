@@ -2,6 +2,8 @@ export const KEY = 'marc.history.v1';
 
 const LIMIT = 40;
 const BUDGET = 300_000;
+/** How long a rewritten row waits before the log is serialised again. */
+const COALESCE_MS = 250;
 const PROBE = `${KEY}.probe`;
 
 function memoryStorage() {
@@ -43,6 +45,7 @@ export function createHistory({
   key = KEY,
   limit = LIMIT,
   budget = BUDGET,
+  coalesceMs = COALESCE_MS,
   now = Date.now,
 } = {}) {
   let conversations = load();
@@ -86,6 +89,26 @@ export function createHistory({
     for (const listener of listeners) listener();
   }
 
+  /**
+   * A spoken row is rewritten on every fragment that lands in it, and a write
+   * is the whole log serialised. Held for a moment so a sentence costs one
+   * write rather than one per word; anything structural flushes first, and so
+   * does the end of a call, which is the last thing every teardown path does.
+   */
+  let waiting = null;
+  function saveSoon() {
+    waiting ??= setTimeout(() => { waiting = null; save(); changed(); }, coalesceMs);
+  }
+  function settle() {
+    if (waiting === null) return false;
+    clearTimeout(waiting);
+    waiting = null;
+    return true;
+  }
+  function flush() {
+    if (settle()) { save(); changed(); }
+  }
+
   function begin({ model, voice } = {}) {
     end();
     open = { id: newId(now()), startedAt: now(), endedAt: null, model, voice, messages: [] };
@@ -98,10 +121,14 @@ export function createHistory({
 
     const existing = message.id && open?.messages.find((m) => m.id === message.id);
     if (existing) {
-      Object.assign(existing, { content: message.content, fragments: message.fragments, start_ms: message.start_ms, end_ms: message.end_ms });
-      save(); changed(); return existing;
+      Object.assign(existing, {
+        content, fragments: message.fragments, start_ms: message.start_ms, end_ms: message.end_ms,
+      });
+      saveSoon();
+      return existing;
     }
     const turn = { ...(message.id ? { id: message.id, fragments: message.fragments, start_ms: message.start_ms, end_ms: message.end_ms } : {}), role: message.role === 'assistant' ? 'assistant' : 'user', content, at: now() };
+    settle();
     open ??= begin();
     if (!conversations.includes(open)) conversations.unshift(open);
     open.messages.push(turn);
@@ -113,6 +140,7 @@ export function createHistory({
   }
 
   function end() {
+    flush();
     if (!open) return null;
     const closed = open;
     open = null;
@@ -126,6 +154,7 @@ export function createHistory({
    * where the one being talked in belongs.
    */
   function resume(id) {
+    flush();
     const at = conversations.findIndex((c) => c.id === id);
     if (at < 0) return null;
 
@@ -143,6 +172,8 @@ export function createHistory({
     append,
     end,
     resume,
+    /** Writes a held update out now. Every teardown path reaches it via `end`. */
+    flush,
 
     get conversations() {
       return conversations.map((c) => ({ ...c, messages: [...c.messages] }));
@@ -153,6 +184,7 @@ export function createHistory({
     },
 
     remove(id) {
+      settle();
       const at = conversations.findIndex((c) => c.id === id);
       if (at < 0) return false;
       if (conversations[at] === open) open = null;
@@ -163,6 +195,7 @@ export function createHistory({
     },
 
     clear() {
+      settle();
       conversations = [];
       open = null;
       try {

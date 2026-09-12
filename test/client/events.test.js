@@ -26,6 +26,12 @@ describe('Live events', () => {
     assert.equal(messages[0].fragments.length, 2);
     assert.equal(log.filter(([t]) => t === 'message')[0][1].id, log.filter(([t]) => t === 'message')[2][1].id);
   });
+  it('nudges the egg on every fragment, harder for its own voice', () => {
+    const { log } = setup();
+    handler.handle({ type: 'session.input_transcript.delta', delta: 'hello', start_ms: 0, end_ms: 100 });
+    handler.handle({ type: 'session.output_transcript.delta', delta: 'hi', start_ms: 200, end_ms: 300 });
+    assert.deepEqual(log.filter(([t]) => t === 'pulse').map(([, w]) => w), [0.22, 0.32]);
+  });
   it('does not present backend completion or text as speech', async () => {
     const { response, log } = setup();
     response({ type: 'response.created', response: { id: 'r1' } });
