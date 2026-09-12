@@ -2,11 +2,8 @@
  * The panel behind the `tools` button: what the model may reach for on this
  * call, with a switch each.
  *
- * The list comes from the server, and today it is empty — Marc runs on
- * memory alone, and memory has a switch of its own. The panel is here ahead of
- * the tools: when the session declares web search, an MCP server or anything
- * else worth switching, `/api/models` names it and the switches appear, without
- * this file changing.
+ * The list comes from the server. Web search is available by default;
+ * changing a switch reconnects with this browser's selected tools.
  *
  * Nothing here can add a tool. A switch only ever takes one out of the call.
  */

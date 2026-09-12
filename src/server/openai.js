@@ -1,77 +1,49 @@
 import { sessionConfig } from './persona.js';
 
-const NOT_CONVERSATIONAL = /translate|whisper|transcribe|tts/;
-
-/**
- * The connectors are read per mint rather than captured once: the panel can
- * switch an agent on between two calls, and the session that goes out has to
- * carry the tools that were on when it was minted.
- */
+/** Read connector settings anew for every session. */
 export function createOpenAIClient({
-  baseUrl,
-  apiKey,
-  defaultModel,
-  defaultVoice,
-  voices,
-  secretTtl,
-  memory = true,
+  baseUrl, apiKey, defaultModel, defaultVoice, voices,
+  memory = true, backendModel, webSearch = true,
 }, connectors = null) {
   async function request(path, init = {}) {
-    const res = await fetch(`${baseUrl}${path}`, {
+    const res = await fetch(baseUrl + path, {
       ...init,
       headers: {
-        authorization: `Bearer ${apiKey}`,
+        authorization: 'Bearer ' + apiKey,
         'content-type': 'application/json',
         ...init.headers,
       },
     });
     const body = await res.json().catch(() => null);
-    if (!res.ok) {
-      throw new Error(body?.error?.message ?? `OpenAI returned ${res.status}`);
-    }
+    if (!res.ok) throw new Error(body?.error?.message ?? ('OpenAI returned ' + res.status));
     return body;
   }
-
-  function rank(id) {
-    if (id === defaultModel) return 0;
-    if (id.includes('preview')) return 2;
-    return 1;
-  }
-
   return {
-    async listRealtimeModels() {
+    async listModels() {
       const { data } = await request('/models');
       return data
-        .filter((m) => m.id.includes('realtime') && !NOT_CONVERSATIONAL.test(m.id))
-        .sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id))
+        .filter((m) => /^gpt-live-[a-z0-9.-]+$/.test(m.id))
+        .sort((a, b) => Number(b.id === defaultModel) - Number(a.id === defaultModel) || a.id.localeCompare(b.id))
         .map((m) => ({ id: m.id, display_name: m.id }));
     },
-
-    async mintClientSecret({ model, voice, memories, resumed } = {}) {
+    async createLiveSession({ sdp, model, voice, memories, resumed, history, toolsOff } = {}) {
+      if (typeof sdp !== 'string' || !sdp.trim()) throw new Error('An SDP offer is required');
+      const chosenModel = typeof model === 'string' && /^gpt-live-[a-z0-9.-]+$/.test(model)
+        ? model : (defaultModel.startsWith('gpt-live-') ? defaultModel : 'gpt-live-1');
       const chosen = voices.includes(voice) ? voice : defaultVoice;
-      const chosenModel = typeof model === 'string'
-        && model.includes('realtime') && !NOT_CONVERSATIONAL.test(model)
-        ? model
-        : defaultModel;
-      const secret = await request('/realtime/client_secrets', {
+      const result = await request('/live/sessions', {
         method: 'POST',
         body: JSON.stringify({
-          expires_after: { anchor: 'created_at', seconds: secretTtl },
           session: sessionConfig(chosenModel, chosen, {
-            memories,
-            memory,
-            resumed: Boolean(resumed),
-            agents: connectors?.agents ?? [],
-            tasks: connectors?.tasks() ?? [],
+            memories, memory, resumed, history, backendModel,
+            webSearch: webSearch && !(Array.isArray(toolsOff) && toolsOff.includes('web_search')),
+            agents: connectors?.agents ?? [], tasks: connectors?.tasks() ?? [],
           }),
+          transport: { type: 'webrtc', sdp },
         }),
       });
-      return {
-        value: secret.value,
-        expires_at: secret.expires_at,
-        model: secret.session?.model ?? chosenModel,
-        voice: chosen,
-      };
+      if (!result?.transport?.sdp || !result?.session?.id) throw new Error('OpenAI returned an invalid Live session');
+      return { session: { id: result.session.id }, transport: result.transport, model: chosenModel, voice: chosen };
     },
   };
 }

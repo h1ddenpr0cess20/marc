@@ -1,14 +1,8 @@
 import { AGENT_NAMES, AGENTS, splitArgs } from './connectors/agents.js';
 
 export const KNOWN_VOICES = Object.freeze([
-  'cedar',
-  'ballad',
-  'ash',
-  'echo',
-  'verse',
+  'ripple', 'vesper', 'stone', 'meridian', 'tempo', 'beacon', 'cinder',
 ]);
-
-const SECRET_TTL = 600;
 
 function flag(value, fallback) {
   if (value == null || value === '') return fallback;
@@ -78,12 +72,13 @@ export function loadConfig(env = process.env) {
     port: Number(env.PORT) || 5173,
     baseUrl: env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
     apiKey: env.OPENAI_API_KEY,
-    defaultModel: env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1',
+    defaultModel: env.OPENAI_LIVE_MODEL || 'gpt-live-1',
+    backendModel: env.OPENAI_BACKEND_MODEL || 'gpt-5.6-terra',
+    webSearch: flag(env.WEB_SEARCH, true),
     defaultVoice,
     voices: KNOWN_VOICES.includes(defaultVoice)
       ? [...KNOWN_VOICES]
       : [defaultVoice, ...KNOWN_VOICES],
-    secretTtl: SECRET_TTL,
     memory: flag(env.MEMORY, true),
     /** Which agents the environment seeded; the panel edits the rest. */
     connectorNames: connectors.names,

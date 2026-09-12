@@ -42,22 +42,22 @@ describe('the memory block', () => {
 
 describe('the session config', () => {
   it('leads with the persona and appends the memories', () => {
-    const config = sessionConfig('gpt-realtime-2.1', 'cedar', { memories: ['takes the stairs'] });
+    const config = sessionConfig('gpt-live-1', 'vesper', { memories: ['takes the stairs'] });
     assert.ok(config.instructions.startsWith(SYSTEM));
     assert.match(config.instructions, /- takes the stairs$/);
   });
 
-  it('is the persona alone with no memories', () => {
-    assert.equal(sessionConfig('gpt-realtime-2.1', 'cedar').instructions, SYSTEM);
+  it('keeps delegation guidance with the persona', () => {
+    assert.match(sessionConfig('gpt-live-1', 'vesper').instructions, /Delegate/);
   });
 
   it('carries the memory tools unless memory is switched off', () => {
-    const on = sessionConfig('gpt-realtime-2.1', 'cedar', { memory: true });
-    assert.deepEqual(on.tools.map((t) => t.name), ['remember', 'forget']);
+    const on = sessionConfig('gpt-live-1', 'vesper', { memory: true });
+    assert.deepEqual(on.delegation.responses.tools.filter((t) => t.type === 'function').map((t) => t.name), ['remember', 'forget']);
 
-    const off = sessionConfig('gpt-realtime-2.1', 'cedar', { memory: false, memories: ['a fact'] });
-    assert.deepEqual(off.tools, []);
-    assert.equal(off.instructions.includes('a fact'), true, 'the block is separate from the tools');
+    const off = sessionConfig('gpt-live-1', 'vesper', { memory: false, memories: ['a fact'] });
+    assert.deepEqual(off.delegation.responses.tools, [{ type: 'web_search' }]);
+    assert.equal(off.instructions.includes('a fact'), false, 'memory off also removes the memory context');
   });
 });
 
@@ -72,7 +72,7 @@ describe('the resumed block', () => {
   });
 
   it('rides behind the persona and the memories, never in place of them', () => {
-    const config = sessionConfig('gpt-realtime-2.1', 'cedar', {
+    const config = sessionConfig('gpt-live-1', 'vesper', {
       memories: ['takes the stairs'],
       resumed: true,
     });

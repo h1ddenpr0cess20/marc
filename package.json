@@ -2,7 +2,7 @@
   "name": "marc",
   "version": "0.1.0",
   "private": true,
-  "description": "A voice agent rendered as an egg, driven by an OpenAI Realtime call",
+  "description": "A voice agent rendered as an egg, driven by an OpenAI GPT-Live conversation",
   "type": "module",
   "engines": {
     "node": ">=22.12"

@@ -20,17 +20,17 @@ const post = (body) => ({
 
 describe('GET /api/models', () => {
   it('returns the catalog and both defaults', async () => {
-    const { stub, middleware } = await api({ OPENAI_VOICE: 'ballad' });
+    const { stub, middleware } = await api({ OPENAI_VOICE: 'stone' });
     after(() => stub.close());
 
     await withServer(middleware, async (request) => {
       const { status, body } = await request('/api/models');
       assert.equal(status, 200);
-      assert.equal(body.model, 'gpt-realtime-2.1');
-      assert.equal(body.voice, 'ballad');
-      assert.ok(body.voices.includes('ballad'));
-      assert.ok(body.models.every((m) => m.id.includes('realtime')));
-      assert.deepEqual(body.switches, [], 'the panel is built; the tools are not here yet');
+      assert.equal(body.model, 'gpt-live-1');
+      assert.equal(body.voice, 'stone');
+      assert.ok(body.voices.includes('stone'));
+      assert.ok(body.models.every((m) => m.id.startsWith('gpt-live-')));
+      assert.deepEqual(body.switches, [{ name: 'web_search', label: 'web search' }]);
     });
   });
 
@@ -47,27 +47,29 @@ describe('GET /api/models', () => {
 });
 
 describe('POST /api/session', () => {
-  it('mints a secret for the requested model and voice', async () => {
+  it('creates a Live session for the requested model and voice', async () => {
     const { stub, middleware } = await api();
     after(() => stub.close());
 
     await withServer(middleware, async (request) => {
-      const { status, body } = await request('/api/session', post({ model: 'gpt-realtime-mini', voice: 'ballad' }));
+      const { status, body } = await request('/api/session', post({ sdp: 'v=0 offer', model: 'gpt-live-1-2026-09-11', voice: 'stone' }));
       assert.equal(status, 200);
-      assert.equal(body.value, 'ek_test');
-      assert.equal(body.voice, 'ballad');
-      assert.equal(body.model, 'gpt-realtime-mini');
+      assert.equal(body.session.id, 'live_test');
+      assert.equal(body.transport.sdp, 'v=0 fake answer');
+      assert.equal(body.voice, 'stone');
+      assert.equal(body.model, 'gpt-live-1-2026-09-11');
     });
   });
 
-  it('accepts an empty body and uses the defaults', async () => {
+  it('rejects an empty body before creating a billable session', async () => {
     const { stub, middleware } = await api();
     after(() => stub.close());
 
     await withServer(middleware, async (request) => {
       const { status, body } = await request('/api/session', { method: 'POST' });
-      assert.equal(status, 200);
-      assert.equal(body.voice, 'cedar');
+      assert.equal(status, 400);
+      assert.match(body.error, /SDP/);
+      assert.equal(stub.requests.length, 0);
     });
   });
 
@@ -88,12 +90,12 @@ describe('POST /api/session', () => {
 
     await withServer(middleware, async (request) => {
       for (const model of ['gpt-realtime-translate', 'whisper-1-realtime', 'not-a-model', 42]) {
-        const { body } = await request('/api/session', post({ model }));
-        assert.equal(body.model, 'gpt-realtime-2.1', `${model} was minted as-is`);
+        const { body } = await request('/api/session', post({ sdp: 'v=0 offer', model }));
+        assert.equal(body.model, 'gpt-live-1', `${model} was minted as-is`);
       }
 
-      const ok = await request('/api/session', post({ model: 'gpt-realtime-mini' }));
-      assert.equal(ok.body.model, 'gpt-realtime-mini', 'a real realtime id must still pass');
+      const ok = await request('/api/session', post({ sdp: 'v=0 offer', model: 'gpt-live-1-2026-09-11' }));
+      assert.equal(ok.body.model, 'gpt-live-1-2026-09-11', 'a real realtime id must still pass');
     });
   });
 
@@ -102,7 +104,7 @@ describe('POST /api/session', () => {
     after(() => stub.close());
 
     await withServer(middleware, async (request) => {
-      for (const raw of ['null', '"ballad"', '42']) {
+      for (const raw of ['null', '"stone"', '42']) {
         const { status, body } = await request('/api/session', post(raw));
         assert.equal(status, 400, `${raw} should be a 400`);
         assert.equal(body.error, 'malformed request body');
@@ -115,7 +117,7 @@ describe('POST /api/session', () => {
     after(() => stub.close());
 
     await withServer(middleware, async (request) => {
-      const { status, body } = await request('/api/session', post({ model: 'x'.repeat(200_000) }));
+      const { status, body } = await request('/api/session', post({ sdp: 'v=0 offer', model: 'x'.repeat(200_000) }));
       assert.equal(status, 400);
       assert.equal(body.error, 'malformed request body');
       assert.equal(stub.requests.length, 0, 'nothing should have been minted');
@@ -131,7 +133,7 @@ describe('POST /api/session', () => {
 
     await withServer(middleware, async (request) => {
       const started = Date.now();
-      const { status } = await request('/api/session', post({ model: 'x'.repeat(2_000_000) }));
+      const { status } = await request('/api/session', post({ sdp: 'v=0 offer', model: 'x'.repeat(2_000_000) }));
       assert.equal(status, 400);
       assert.ok(Date.now() - started < 10_000, 'it should fail fast, not hang');
     });

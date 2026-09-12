@@ -6,8 +6,10 @@ Both `npm run dev` and `npm start` read `.env`.
 |---|---|---|
 | `OPENAI_API_KEY` | — | Required. Stays in the Node process. |
 | `MEMORY` | `true` | The `remember` and `forget` tools, and the memory block in the prompt |
-| `OPENAI_VOICE` | `cedar` | Which voice the picker opens on (`cedar`, `ballad`, `ash`, `echo`, `verse`) |
-| `OPENAI_REALTIME_MODEL` | `gpt-realtime-2.1` | Preselected in the picker when the key can reach it |
+| `OPENAI_VOICE` | `ripple` | Initial voice: ripple, vesper, stone, meridian, tempo, beacon, cinder |
+| `OPENAI_LIVE_MODEL` | `gpt-live-1` | Preselected GPT-Live model |
+| `OPENAI_BACKEND_MODEL` | `gpt-5.6-terra` | Responses backend for reasoning and tools |
+| `WEB_SEARCH` | `true` | Hosted web search; browsers may disable it |
 | `OPENAI_BASE_URL` | OpenAI | Points the proxy at a gateway or a stub |
 | `PORT` | `5173` | |
 | `SSL_KEY`, `SSL_CERT` | — | Paths to a real certificate; `npm start` then serves HTTPS |
@@ -21,12 +23,12 @@ Both `npm run dev` and `npm start` read `.env`.
 | `CODEX_MODEL`, `CODEX_ARGS`, `CODEX_CWD` | — | Per agent |
 | `CODEX_SANDBOX` | `workspace-write` | Its sandbox policy |
 
-The voice picker lists male voices only — Marc has one voice range, and changing
-it mid-conversation would make him a different character between turns. `cedar`
-is the default: realtime-native, and the most naturalistic of them. `ballad` has
-a drier lift; `ash`, `echo` and `verse` predate cedar and read flatter. An
-`OPENAI_VOICE` outside that list is still honoured and joins the picker at the
-front — the list in `src/server/config.js` goes stale, the API doesn't.
+The picker lists GPT-Live models accessible to your API key. Marc defaults to
+Ripple. An authorized voice outside the list can be set with `OPENAI_VOICE`.
+Changing voice or model reconnects with recent history.
+
+Replace `OPENAI_REALTIME_MODEL` in existing `.env` files with
+`OPENAI_LIVE_MODEL=gpt-live-1`. This clone uses the Live protocol only.
 
 ## On a phone
 
@@ -63,27 +65,21 @@ your Docker Hub account isn't `h1ddenpr0cess20`.
 
 ## Tools
 
-Marc has no tools beyond memory. He answers from what the model already knows:
-no web search, no retrieval. Ask him about this morning and he should say he
-doesn't know, which is what the system prompt asks for.
+GPT-Live handles speech while a Responses backend handles reasoning and tools.
+The managed backend supports `web_search` and custom `function` tools. Search
+is enabled by default; memory and enabled coding-agent functions are retained.
+MCP, file search, image generation and code interpreter are not declared because
+they are not supported by Live's managed Responses configuration.
 
-The exceptions are `remember` and `forget`, which the page executes itself
-against browser storage, and the connectors below, which the server executes. Remote MCP servers, which the Realtime API executes on
-its own, would be a few lines in the same place: `sessionConfig()` in
-`src/server/persona.js` already builds the tool list, and anything needing auth
-headers stays in the server-side `/v1/realtime/client_secrets` payload rather
-than in the page.
+The tools panel stores each browser's search preference and reconnects the call
+when it changes. `WEB_SEARCH=false` disables search server-wide. Source links
+appear below spoken captions — each cited page once, the oldest giving way past
+six, and cleared along with the caption they belong to. Backend text is not
+presented as speech.
 
-### The tools panel, ahead of the tools
-
-`tools` opens the panel those switches will live in. It is empty today, and says
-so: Marc has nothing to switch beyond memory, which keeps its own switch in
-the `memory` panel. `/api/models` publishes the list — `switches`, empty for now
-— and the page renders one row per entry, so a tool declared in `sessionConfig()`
-becomes a switch without a change to the panel.
-
-The switches themselves are per browser, kept in `localStorage`, and they can
-only ever take a tool away. What exists stays the server's to decide.
+Official contracts: [Live tools](https://developers.openai.com/api/docs/guides/live-delegation),
+[session configuration](https://developers.openai.com/api/docs/guides/live-conversations),
+and [WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc?api=live).
 
 ## Connectors
 
@@ -145,7 +141,7 @@ line by hand, drop one, switch the whole thing off, or clear it. `MEMORY=false`
 removes the tools and the prompt block for everyone the server serves.
 
 Editing the list by hand takes effect on the next call rather than the current
-one — the instructions are baked into the client secret, and the page has no
+one — the instructions are set when the Live session is created, and the page has no
 copy of the persona to re-send with. A `remember` the model makes mid-call needs
 no such round trip: it already knows what it just stored, because the tool
 result said so.

@@ -12,7 +12,7 @@ export function installMediaStack({
     audioContexts: [],
     sdpRequests: [],
     secretRequests: [],
-    secret: { value: 'ek_test', model: 'gpt-realtime-2.1', voice: 'ballad' },
+    secret: { session: { id: 'live_test' }, transport: { type: 'webrtc', sdp: 'v=0 fake answer' }, model: 'gpt-live-1', voice: 'vesper' },
     secretStatus: 200,
   };
 
@@ -66,6 +66,7 @@ export function installMediaStack({
   class FakePeerConnection {
     constructor() {
       this.connectionState = 'new';
+      this.iceGatheringState = 'complete';
       this.localDescription = null;
       this.remoteDescription = null;
       this.tracks = [];
@@ -93,6 +94,7 @@ export function installMediaStack({
       this.connectionState = 'connected';
       this.ontrack?.({ streams: [new FakeStream()] });
       this.channel.open();
+      this.channel.deliver({ type: 'session.started', session: { id: 'live_test' } });
     }
     drop(reason = 'failed') {
       this.connectionState = reason;

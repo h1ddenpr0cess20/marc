@@ -8,8 +8,8 @@ describe('loadConfig', () => {
     const config = loadConfig({});
     assert.equal(config.port, 5173);
     assert.equal(config.baseUrl, 'https://api.openai.com/v1');
-    assert.equal(config.defaultModel, 'gpt-realtime-2.1');
-    assert.equal(config.defaultVoice, 'cedar');
+    assert.equal(config.defaultModel, 'gpt-live-1');
+    assert.equal(config.defaultVoice, 'ripple');
     assert.deepEqual(config.voices, [...KNOWN_VOICES]);
     assert.equal(config.apiKey, undefined);
   });
@@ -19,14 +19,14 @@ describe('loadConfig', () => {
       PORT: '8080',
       OPENAI_BASE_URL: 'https://gateway.example/v1',
       OPENAI_API_KEY: 'sk-test',
-      OPENAI_REALTIME_MODEL: 'gpt-realtime-mini',
-      OPENAI_VOICE: 'ballad',
+      OPENAI_LIVE_MODEL: 'gpt-live-1-2026-09-11',
+      OPENAI_VOICE: 'stone',
     });
     assert.equal(config.port, 8080);
     assert.equal(config.baseUrl, 'https://gateway.example/v1');
     assert.equal(config.apiKey, 'sk-test');
-    assert.equal(config.defaultModel, 'gpt-realtime-mini');
-    assert.equal(config.defaultVoice, 'ballad');
+    assert.equal(config.defaultModel, 'gpt-live-1-2026-09-11');
+    assert.equal(config.defaultVoice, 'stone');
   });
 
   it('puts an unrecognised voice at the front of the picker rather than dropping it', () => {
@@ -37,8 +37,8 @@ describe('loadConfig', () => {
   });
 
   it('does not duplicate a known voice that is also the default', () => {
-    const { voices } = loadConfig({ OPENAI_VOICE: 'ballad' });
-    assert.equal(voices.filter((v) => v === 'ballad').length, 1);
+    const { voices } = loadConfig({ OPENAI_VOICE: 'stone' });
+    assert.equal(voices.filter((v) => v === 'stone').length, 1);
   });
 
   it('ignores a non-numeric PORT instead of listening on NaN', () => {

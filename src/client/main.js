@@ -24,14 +24,14 @@ const { THREE } = await stage.ready;
 
 const marc = createEggBuddy({ stage, THREE });
 const memory = createMemory();
-const session = createVoiceSession({ memory });
+const switches = createToolSwitches();
+const session = createVoiceSession({ memory, toolsOff: () => switches.off });
 const hud = createHud();
 const menu = createMenu();
 const history = createHistory();
 const historyPanel = createHistoryPanel({ history, onNew: startFresh, onResume: pickUp });
 const memoryPanel = createMemoryPanel({ memory });
-const switches = createToolSwitches();
-const toolsPanel = createToolsPanel({ switches });
+const toolsPanel = createToolsPanel({ switches, onChange: redial });
 
 /**
  * Work handed to a coding agent, and the panel that sets one up.
@@ -158,7 +158,7 @@ function chipState() {
  */
 function redial() {
   if (!session.connected) return;
-  const thread = session.context.length ? history.live : null;
+  const thread = history.live;
   session.stop();
   if (thread) session.context = history.resume(thread)?.messages ?? [];
   controls.toggleMic();
@@ -169,7 +169,6 @@ session.on('state', (state) => {
     history.end();
     hud.hideUser();
   }
-  if (state === 'thinking') hud.clearCaption();
   marc.setState(state);
   hud.setState(chipState());
   armIdleMute();
@@ -183,14 +182,17 @@ session.on('busy', () => {
 
 session.on('level', (level) => marc.setLevel(level));
 session.on('pulse', (weight) => marc.pulse(weight));
-session.on('text', (chunk) => {
-  hud.appendCaption(chunk);
-  armIdleMute();
-});
 session.on('user', (text) => {
   hud.showUser(text);
   armIdleMute();
 });
+
+/** A spoken row arrives whole every time it grows, so it replaces the caption. */
+session.on('caption', (text) => {
+  hud.setCaption(text);
+  armIdleMute();
+});
+session.on('source', (source) => hud.showSource(source));
 
 session.on('message', (message) => history.append(message));
 
@@ -205,7 +207,9 @@ session.on('error', ({ message }) => {
 
 try {
   const catalog = await fetchCatalog();
-  if (!catalog.models.length) throw new Error('this key can’t reach any realtime model');
+  switches.setCatalog(catalog.switches);
+  toolsPanel.render();
+  if (!catalog.models.length) throw new Error('this key can’t reach any voice model');
   const chosen = controls.setCatalog(catalog);
   session.model = chosen.model;
   session.voice = chosen.voice;

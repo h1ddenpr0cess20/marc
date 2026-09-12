@@ -121,31 +121,38 @@ export function resumedBlock(resumed) {
     + ' them, and no remarking on the gap unless they do.';
 }
 
+/** GPT-Live owns speech; the Responses backend owns functions and lookups. */
 export function sessionConfig(model, voice, {
-  memories,
-  memory = true,
-  resumed,
-  agents,
-  tasks,
+  memories, memory = true, resumed, agents, tasks, history,
+  backendModel = 'gpt-5.6-terra', webSearch = true,
 } = {}) {
+  const input = (Array.isArray(history) ? history : [])
+    .filter((m) => m && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string')
+    .slice(-40)
+    .map((m) => ({
+      type: 'message', role: m.role,
+      content: [{ type: m.role === 'assistant' ? 'output_text' : 'input_text', text: m.content.slice(0, 6000) }],
+    }));
+  // A conservative UTF-8 byte budget also bounds tokens for non-English text.
+  let bytes = input.reduce((n, m) => n + Buffer.byteLength(m.content[0].text), 0);
+  while (bytes > 6000 && input.length) bytes -= Buffer.byteLength(input.shift().content[0].text);
   return {
-    type: 'realtime',
     model,
-    instructions: SYSTEM + memoryBlock(memories) + connectorBlock(agents)
-      + tasksBlock(tasks) + resumedBlock(resumed),
-    tools: buildTools({ memory, connectors: agents }),
-    audio: {
-      input: {
-        noise_reduction: { type: 'near_field' },
-        transcription: { model: 'gpt-4o-mini-transcribe' },
-        turn_detection: {
-          type: 'semantic_vad',
-          eagerness: 'medium',
-          create_response: true,
-          interrupt_response: true,
-        },
+    instructions: SYSTEM + '\nDelegate questions requiring reasoning, current information, memory changes or coding-agent actions to the backend. Keep listening while it works. Only report actions as successful after the backend confirms them.'
+      + memoryBlock(memory ? memories : []) + resumedBlock(resumed),
+    input,
+    audio: { output: { voice } },
+    delegation: {
+      type: 'responses',
+      responses: {
+        model: backendModel,
+        instructions: 'You support Marc, an egg in a live voice conversation. Resolve the latest request using the conversation and tools. Return concise verified results for Marc to speak. Never claim a tool succeeded without its result.'
+          + (webSearch ? ' Use web search for current information and include source citations.' : '')
+          + memoryBlock(memory ? memories : []) + connectorBlock(agents) + tasksBlock(tasks),
+        tools: [...(webSearch ? [{ type: 'web_search' }] : []), ...buildTools({ memory, connectors: agents }).map((tool) => ({ ...tool, strict: false }))],
+        tool_choice: 'auto',
+        parallel_tool_calls: false,
       },
-      output: { voice },
     },
   };
 }
