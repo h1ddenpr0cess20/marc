@@ -9,6 +9,7 @@ export function createControls({
   onSubmit,
   onModelChange,
   onVoiceChange,
+  onBackendChange,
   onCancel,
   hangMs = HANG_MS,
 }) {
@@ -16,6 +17,7 @@ export function createControls({
   const promptEl = root.querySelector('#prompt');
   const modelEl = root.querySelector('#model');
   const voiceEl = root.querySelector('#voice');
+  const backendEl = root.querySelector('#backend');
   const sendEl = root.querySelector('#send');
   const micEl = root.querySelector('#mic');
 
@@ -118,6 +120,7 @@ export function createControls({
 
   modelEl.addEventListener('change', () => onModelChange(modelEl.value));
   voiceEl.addEventListener('change', () => onVoiceChange(voiceEl.value));
+  backendEl.addEventListener('change', () => onBackendChange?.(backendEl.value));
 
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') onCancel();
@@ -128,7 +131,7 @@ export function createControls({
     toggleMic,
     focus: () => micEl.focus(),
 
-    setCatalog({ models, model, voices, voice }) {
+    setCatalog({ models, model, voices, voice, backendModels = [], backendModel }) {
       modelEl.replaceChildren(...models.map((m) => new Option(m.display_name ?? m.id, m.id)));
       const selectedModel = models.some((m) => m.id === model) ? model : models[0].id;
       modelEl.value = selectedModel;
@@ -136,12 +139,24 @@ export function createControls({
       voiceEl.replaceChildren(...voices.map((v) => new Option(v, v)));
       voiceEl.value = voice;
 
-      return { model: selectedModel, voice: voiceEl.value };
+      /**
+       * The backend the call delegates to. A server that offered none — an old
+       * proxy, or a key that lists nothing it could reason with — gets no
+       * picker rather than an empty one, and keeps whatever it dials with.
+       */
+      backendEl.replaceChildren(...backendModels.map((m) => new Option(m.display_name ?? m.id, m.id)));
+      backendEl.hidden = !backendModels.length;
+      const selectedBackend = backendModels.some((m) => m.id === backendModel)
+        ? backendModel : backendModels[0]?.id;
+      if (selectedBackend) backendEl.value = selectedBackend;
+
+      return { model: selectedModel, voice: voiceEl.value, backendModel: selectedBackend };
     },
 
     catalogUnavailable() {
       modelEl.replaceChildren(new Option('unavailable', ''));
       voiceEl.replaceChildren(new Option('—', ''));
+      backendEl.replaceChildren(new Option('—', ''));
       micEl.disabled = true;
     },
   };

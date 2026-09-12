@@ -28,6 +28,14 @@ describe('Live voice session', () => {
     assert.deepEqual(request.toolsOff, ['web_search']);
     assert.deepEqual(media.peers[0].channel.sent, []);
   });
+  it('dials with the backend that was picked, and a new pick makes the call stale', async () => {
+    setup({}, { backendModel: 'gpt-5.6-luna' });
+    await session.start();
+    assert.equal(media.secretRequests[0].backendModel, 'gpt-5.6-luna');
+    assert.equal(session.stale, false);
+    session.backendModel = 'gpt-5.6-terra';
+    assert.equal(session.stale, true);
+  });
   it('submits typed input to the delegated backend', async () => {
     setup(); await session.start();
     session.send('  search for the latest news  ');

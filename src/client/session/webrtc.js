@@ -83,7 +83,7 @@ export async function connect({ options, micStream, onEvent, onTrack, onClose, s
     await pc.setRemoteDescription({ type: 'answer', sdp: result.transport.sdp });
     await ready;
     return {
-      model: result.model, voice: result.voice,
+      model: result.model, voice: result.voice, backendModel: result.backendModel,
       get open() { return started && !closing && !finalized && channel.readyState === 'open'; },
       send(event) {
         if (!this.open) return false;

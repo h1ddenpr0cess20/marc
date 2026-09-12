@@ -73,9 +73,13 @@ export function createApiMiddleware(config, connectors = null) {
     try {
       if (path === '/api/models' && req.method === 'GET') {
         if (!config.apiKey) return sendJSON(res, 500, { error: 'OPENAI_API_KEY is not set' });
+        const { models, backendModels } = await openai.catalog();
         return sendJSON(res, 200, {
-          models: await openai.listModels(),
+          models,
           model: config.defaultModel,
+          /** The other end of the call: what reasons and runs the tools. */
+          backendModels,
+          backendModel: config.backendModel,
           voices: config.voices,
           voice: config.defaultVoice,
           memory: config.memory,

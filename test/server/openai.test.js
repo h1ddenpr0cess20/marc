@@ -12,7 +12,30 @@ async function setup(env = {}, options) {
 describe('GPT-Live backend', () => {
   it('offers only Live models with the default first', async () => {
     const { client } = await setup();
-    assert.deepEqual((await client.listModels()).map((m) => m.id), ['gpt-live-1', 'gpt-live-1-2026-09-11']);
+    assert.deepEqual((await client.catalog()).models.map((m) => m.id), ['gpt-live-1', 'gpt-live-1-2026-09-11']);
+  });
+  it('offers text models as backends, the configured one first', async () => {
+    const { client } = await setup({ OPENAI_BACKEND_MODEL: 'gpt-5.6-luna' });
+    const ids = (await client.catalog()).backendModels.map((m) => m.id);
+    assert.deepEqual(ids, ['gpt-5.6-luna', 'gpt-4o', 'gpt-5.6-terra']);
+  });
+  it('keeps a configured backend the key cannot list in the picker', async () => {
+    const { client } = await setup({ OPENAI_BACKEND_MODEL: 'gpt-9-unreleased' });
+    const ids = (await client.catalog()).backendModels.map((m) => m.id);
+    assert.equal(ids[0], 'gpt-9-unreleased');
+  });
+  it('lets the browser pick the backend, and vets what it names', async () => {
+    const { client, stub } = await setup();
+    const backend = () => stub.requests.at(-1).body.session.delegation.responses.model;
+
+    const picked = await client.createLiveSession({ sdp: 'offer', backendModel: 'gpt-5.6-luna' });
+    assert.equal(backend(), 'gpt-5.6-luna');
+    assert.equal(picked.backendModel, 'gpt-5.6-luna');
+
+    for (const model of ['gpt-live-1', 'tts-realtime', 'text-embedding-3-large', 'not-a-model', 42]) {
+      await client.createLiveSession({ sdp: 'offer', backendModel: model });
+      assert.equal(backend(), 'gpt-5.6-terra', `${model} was delegated to as-is`);
+    }
   });
   it('creates a session with search and function tools', async () => {
     const { client, stub } = await setup();

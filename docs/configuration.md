@@ -8,7 +8,7 @@ Both `npm run dev` and `npm start` read `.env`.
 | `MEMORY` | `true` | The `remember` and `forget` tools, and the memory block in the prompt |
 | `OPENAI_VOICE` | `ripple` | Initial voice: ripple, vesper, stone, meridian, tempo, beacon, cinder |
 | `OPENAI_LIVE_MODEL` | `gpt-live-1` | Preselected GPT-Live model |
-| `OPENAI_BACKEND_MODEL` | `gpt-5.6-terra` | Responses backend for reasoning and tools |
+| `OPENAI_BACKEND_MODEL` | `gpt-5.6-terra` | Preselected Responses backend for reasoning and tools |
 | `WEB_SEARCH` | `true` | Hosted web search; browsers may disable it |
 | `OPENAI_BASE_URL` | OpenAI | Points the proxy at a gateway or a stub |
 | `PORT` | `5173` | |
@@ -25,7 +25,15 @@ Both `npm run dev` and `npm start` read `.env`.
 
 The picker lists GPT-Live models accessible to your API key. Marc defaults to
 Ripple. An authorized voice outside the list can be set with `OPENAI_VOICE`.
-Changing voice or model reconnects with recent history.
+
+The third picker is the other end of the call: the Responses model Marc
+delegates reasoning, lookups and tool calls to. It lists the text models your
+key can reach — the speech, image and embedding ones are left out, since they
+cannot answer a delegation — with `OPENAI_BACKEND_MODEL` preselected and always
+offered, whether or not the key lists it. Picking one that is not a text model
+is refused by the proxy and the configured backend is minted instead.
+
+Changing voice, model or backend reconnects with recent history.
 
 Replace `OPENAI_REALTIME_MODEL` in existing `.env` files with
 `OPENAI_LIVE_MODEL=gpt-live-1`. This clone uses the Live protocol only.

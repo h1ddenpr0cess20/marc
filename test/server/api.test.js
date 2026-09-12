@@ -30,6 +30,9 @@ describe('GET /api/models', () => {
       assert.equal(body.voice, 'stone');
       assert.ok(body.voices.includes('stone'));
       assert.ok(body.models.every((m) => m.id.startsWith('gpt-live-')));
+      assert.equal(body.backendModel, 'gpt-5.6-terra');
+      assert.equal(body.backendModels[0].id, 'gpt-5.6-terra');
+      assert.ok(body.backendModels.every((m) => !m.id.includes('live')));
       assert.deepEqual(body.switches, [{ name: 'web_search', label: 'web search' }]);
     });
   });
@@ -58,6 +61,19 @@ describe('POST /api/session', () => {
       assert.equal(body.transport.sdp, 'v=0 fake answer');
       assert.equal(body.voice, 'stone');
       assert.equal(body.model, 'gpt-live-1-2026-09-11');
+    });
+  });
+
+  it('mints the backend the browser picked, and ignores one it should not', async () => {
+    const { stub, middleware } = await api();
+    after(() => stub.close());
+
+    await withServer(middleware, async (request) => {
+      const picked = await request('/api/session', post({ sdp: 'v=0 offer', backendModel: 'gpt-5.6-luna' }));
+      assert.equal(picked.body.backendModel, 'gpt-5.6-luna');
+
+      const bogus = await request('/api/session', post({ sdp: 'v=0 offer', backendModel: 'whisper-1-realtime' }));
+      assert.equal(bogus.body.backendModel, 'gpt-5.6-terra');
     });
   });
 

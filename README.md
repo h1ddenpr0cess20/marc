@@ -27,6 +27,11 @@ by default). Voice duration, backend tokens and tool use are billed separately.
 
 Click the mic, allow the browser's microphone prompt, and start talking.
 
+Three pickers sit under the composer: the GPT-Live model that does the talking,
+the voice it talks in, and the Responses model behind it that reasons, looks
+things up and runs the tools. Changing any of them redials and keeps the
+conversation.
+
 Tapping the mic is the microphone switch: turning it off stops what you send and
 leaves the answer playing, and the conversation is still there when you turn it
 back on. It also switches itself off after a minute of silence, and the call
