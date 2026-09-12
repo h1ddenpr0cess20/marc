@@ -100,6 +100,12 @@ const controls = createControls({
     redial();
   },
 
+  /** The reasoning end of the call, chosen the same way the voice one is. */
+  onBackendChange(backendModel) {
+    session.backendModel = backendModel;
+    redial();
+  },
+
   onCancel() {
     if (toolsPanel.isOpen) return toolsPanel.close();
     if (connectorsPanel.isOpen) return connectorsPanel.close();
@@ -213,6 +219,7 @@ try {
   const chosen = controls.setCatalog(catalog);
   session.model = chosen.model;
   session.voice = chosen.voice;
+  session.backendModel = chosen.backendModel;
 } catch (err) {
   controls.catalogUnavailable();
   hud.showError(`${err.message} — is the proxy running? (npm run dev)`);

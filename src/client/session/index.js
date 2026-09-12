@@ -20,12 +20,15 @@ export function prior(turns = []) {
   return kept;
 }
 
-export function createVoiceSession({ model = 'gpt-live-1', voice, memory, toolsOff = () => [] } = {}) {
+export function createVoiceSession({
+  model = 'gpt-live-1', voice, backendModel, memory, toolsOff = () => [],
+} = {}) {
   const { on, emit } = createEmitter();
   const messages = [];
   const tools = createTools({ memory });
   let current = model;
   let currentVoice = voice;
+  let currentBackend = backendModel;
   let call = null;
   let events = null;
   let pending = null;
@@ -96,8 +99,9 @@ export function createVoiceSession({ model = 'gpt-live-1', voice, memory, toolsO
       });
       events = handler;
       const connection = await connect({
-        options: { model: current, voice: currentVoice, history: earlier,
-          resumed: earlier.length > 0, memories: memory?.lines() ?? [], toolsOff: toolsOff() },
+        options: { model: current, voice: currentVoice, backendModel: currentBackend,
+          history: earlier, resumed: earlier.length > 0,
+          memories: memory?.lines() ?? [], toolsOff: toolsOff() },
         signal: controller.signal,
         micStream,
         onEvent: (event) => {
@@ -127,6 +131,7 @@ export function createVoiceSession({ model = 'gpt-live-1', voice, memory, toolsO
       pending = null;
       current = connection.model ?? current;
       currentVoice = connection.voice ?? currentVoice;
+      currentBackend = connection.backendModel ?? currentBackend;
       meter.start();
       setState('listening');
     } catch (err) {
@@ -205,6 +210,9 @@ export function createVoiceSession({ model = 'gpt-live-1', voice, memory, toolsO
     set model(next) { current = next; picked++; },
     get voice() { return currentVoice; },
     set voice(next) { currentVoice = next; picked++; },
+    /** The Responses model behind the call; like the others, a redial to change. */
+    get backendModel() { return currentBackend; },
+    set backendModel(next) { currentBackend = next; picked++; },
     get stale() { return !!call && picked !== connectedPick; },
     cancel() {
       if (call?.open) append('session.instructions.append', 'Stop speaking now and listen.');

@@ -236,7 +236,7 @@ three-d-stage {
 #send:disabled { opacity: .3; cursor: default; }
 #send svg { display: block; }
 
-#model, #voice {
+#model, #voice, #backend {
   appearance: none;
   cursor: pointer;
   flex: none;
@@ -250,10 +250,11 @@ three-d-stage {
   text-overflow: ellipsis;
   transition: color .2s, border-color .2s;
 }
-#model:hover, #voice:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
-#model:focus, #voice:focus { outline: none; border-color: rgba(255, 255, 255, .4); }
-#model option, #voice option { background: #1c1a17; color: var(--ink); }
+#model:hover, #voice:hover, #backend:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
+#model:focus, #voice:focus, #backend:focus { outline: none; border-color: rgba(255, 255, 255, .4); }
+#model option, #voice option, #backend option { background: #1c1a17; color: var(--ink); }
 #voice { max-width: 112px; }
+#backend { max-width: 150px; }
 
 #menu {
   position: fixed;
@@ -559,12 +560,14 @@ three-d-stage {
   #composer { flex-wrap: wrap; }
   #options {
     display: flex;
+    flex-wrap: wrap;
     order: 2;
     flex: 1 0 100%;
     gap: 8px;
   }
-  #model, #voice {
-    flex: 1 1 0;
+  /* Three pickers on one phone-width row are unreadable: they wrap instead. */
+  #model, #voice, #backend {
+    flex: 1 1 120px;
     max-width: none;
     min-width: 0;
     padding: 11px 24px 11px 12px;
@@ -598,7 +601,7 @@ three-d-stage {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #you, #caption, #status, #composer, #mic, #send, #model, #voice,
+  #you, #caption, #status, #composer, #mic, #send, #model, #voice, #backend,
   #menu-toggle, #menu-items button,
   #history-head button, #memory-head button, #toolbox-head button,
   #memory-add button, .tool-item .switch {

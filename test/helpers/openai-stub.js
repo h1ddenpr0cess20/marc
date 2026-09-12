@@ -44,6 +44,12 @@ export async function startOpenAIStub({ models = DEFAULT_MODELS, fail = null } =
 export const DEFAULT_MODELS = [
   'gpt-live-1',
   'gpt-live-1-2026-09-11',
+  'gpt-5.6-terra',
+  'gpt-5.6-terra-2026-08-20',
+  'gpt-5.6-luna',
+  'gpt-5.6-codex',
+  'gpt-5.6-codex-mini',
+  'gpt-6',
   'gpt-4o',
   'gpt-realtime-mini',
   'gpt-4o-realtime-preview-2024-12-17',
@@ -52,4 +58,6 @@ export const DEFAULT_MODELS = [
   'whisper-1-realtime',
   'gpt-realtime-transcribe',
   'tts-realtime',
+  'text-embedding-3-large',
+  'gpt-image-1',
 ];

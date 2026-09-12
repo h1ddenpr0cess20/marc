@@ -12,6 +12,11 @@ const CATALOG = {
   model: 'gpt-realtime-2.1',
   voices: ['ballad', 'cedar', 'ash'],
   voice: 'ballad',
+  backendModels: [
+    { id: 'gpt-5.6-terra', display_name: 'gpt-5.6-terra' },
+    { id: 'gpt-5.6-luna', display_name: 'gpt-5.6-luna' },
+  ],
+  backendModel: 'gpt-5.6-terra',
 };
 
 describe('createControls', () => {
@@ -26,7 +31,7 @@ describe('createControls', () => {
     restore = withGlobals({ Option: page.window.Option });
 
     status = { connected: false, busy: false, muted: false };
-    calls = { mic: 0, submit: [], model: [], voice: [], cancel: 0 };
+    calls = { mic: 0, submit: [], model: [], voice: [], backend: [], cancel: 0 };
 
     controls = createControls({
       root: page.document,
@@ -35,6 +40,7 @@ describe('createControls', () => {
       onSubmit: (text) => calls.submit.push(text),
       onModelChange: (m) => calls.model.push(m),
       onVoiceChange: (v) => calls.voice.push(v),
+      onBackendChange: (b) => calls.backend.push(b),
       onCancel: () => { calls.cancel++; },
     });
   });
@@ -287,7 +293,22 @@ describe('createControls', () => {
       );
       assert.equal(page.$('#model').value, 'gpt-realtime-2.1');
       assert.equal(page.$('#voice').value, 'ballad');
-      assert.deepEqual(chosen, { model: 'gpt-realtime-2.1', voice: 'ballad' });
+      assert.equal(page.$('#backend').value, 'gpt-5.6-terra');
+      assert.deepEqual(chosen, {
+        model: 'gpt-realtime-2.1', voice: 'ballad', backendModel: 'gpt-5.6-terra',
+      });
+    });
+
+    it('falls back to the first backend when the configured one is not offered', () => {
+      const chosen = controls.setCatalog({ ...CATALOG, backendModel: 'gpt-5.9-unreleased' });
+      assert.equal(chosen.backendModel, 'gpt-5.6-terra');
+      assert.equal(page.$('#backend').value, 'gpt-5.6-terra');
+    });
+
+    it('hides the backend picker when the server offered none', () => {
+      const chosen = controls.setCatalog({ ...CATALOG, backendModels: [] });
+      assert.equal(page.$('#backend').hidden, true);
+      assert.equal(chosen.backendModel, undefined);
     });
 
     it('falls back to the first model when the key cannot reach the default', () => {
@@ -318,6 +339,10 @@ describe('createControls', () => {
       page.$('#voice').value = 'cedar';
       page.$('#voice').dispatchEvent(new page.window.Event('change', { bubbles: true }));
       assert.deepEqual(calls.voice, ['cedar']);
+
+      page.$('#backend').value = 'gpt-5.6-luna';
+      page.$('#backend').dispatchEvent(new page.window.Event('change', { bubbles: true }));
+      assert.deepEqual(calls.backend, ['gpt-5.6-luna']);
     });
 
     it('locks the mic when there is no catalog to dial with', () => {
