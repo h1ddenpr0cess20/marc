@@ -129,6 +129,7 @@ three-d-stage {
 #composer {
   pointer-events: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 7px;
@@ -149,7 +150,17 @@ three-d-stage {
   outline-offset: 2px;
 }
 
-#options { display: contents; }
+/**
+ * The pickers get a line of their own, under what you type. Three of them
+ * beside a text field left the field too narrow to read its own placeholder,
+ * and the one being squeezed is the part you use most.
+ */
+#options {
+  display: flex;
+  order: 2;
+  flex: 1 0 100%;
+  gap: 10px;
+}
 #send { order: 1; }
 
 #prompt {
@@ -239,8 +250,8 @@ three-d-stage {
 #model, #voice, #backend {
   appearance: none;
   cursor: pointer;
-  flex: none;
-  max-width: 168px;
+  flex: 1 1 120px;
+  min-width: 0;
   padding: 9px 26px 9px 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, .05) no-repeat right 11px center;
@@ -253,8 +264,6 @@ three-d-stage {
 #model:hover, #voice:hover, #backend:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
 #model:focus, #voice:focus, #backend:focus { outline: none; border-color: rgba(255, 255, 255, .4); }
 #model option, #voice option, #backend option { background: #1c1a17; color: var(--ink); }
-#voice { max-width: 112px; }
-#backend { max-width: 150px; }
 
 #menu {
   position: fixed;
@@ -557,21 +566,9 @@ three-d-stage {
   #menu { top: calc(env(safe-area-inset-top) + 4px); }
   #status { top: calc(env(safe-area-inset-top) + 54px); }
 
-  #composer { flex-wrap: wrap; }
-  #options {
-    display: flex;
-    flex-wrap: wrap;
-    order: 2;
-    flex: 1 0 100%;
-    gap: 8px;
-  }
   /* Three pickers on one phone-width row are unreadable: they wrap instead. */
-  #model, #voice, #backend {
-    flex: 1 1 120px;
-    max-width: none;
-    min-width: 0;
-    padding: 11px 24px 11px 12px;
-  }
+  #options { flex-wrap: wrap; gap: 8px; }
+  #model, #voice, #backend { padding: 11px 24px 11px 12px; }
   #history,
   #memory,
   #toolbox {
