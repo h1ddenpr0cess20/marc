@@ -14,15 +14,15 @@ describe('GPT-Live backend', () => {
     const { client } = await setup();
     assert.deepEqual((await client.catalog()).models.map((m) => m.id), ['gpt-live-1', 'gpt-live-1-2026-09-11']);
   });
-  it('offers text models as backends, the configured one first', async () => {
+  it('offers text models from GPT-5 on as backends, the configured one first', async () => {
     const { client } = await setup({ OPENAI_BACKEND_MODEL: 'gpt-5.6-luna' });
     const ids = (await client.catalog()).backendModels.map((m) => m.id);
-    assert.deepEqual(ids, ['gpt-5.6-luna', 'gpt-4o', 'gpt-5.6-terra']);
+    assert.deepEqual(ids, ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-6']);
   });
   it('keeps a configured backend the key cannot list in the picker', async () => {
-    const { client } = await setup({ OPENAI_BACKEND_MODEL: 'gpt-9-unreleased' });
+    const { client } = await setup({ OPENAI_BACKEND_MODEL: 'gpt-5.9-unreleased' });
     const ids = (await client.catalog()).backendModels.map((m) => m.id);
-    assert.equal(ids[0], 'gpt-9-unreleased');
+    assert.equal(ids[0], 'gpt-5.9-unreleased');
   });
   it('lets the browser pick the backend, and vets what it names', async () => {
     const { client, stub } = await setup();
@@ -32,7 +32,7 @@ describe('GPT-Live backend', () => {
     assert.equal(backend(), 'gpt-5.6-luna');
     assert.equal(picked.backendModel, 'gpt-5.6-luna');
 
-    for (const model of ['gpt-live-1', 'tts-realtime', 'text-embedding-3-large', 'not-a-model', 42]) {
+    for (const model of ['gpt-4o', 'gpt-live-1', 'tts-realtime', 'text-embedding-3-large', 'not-a-model', 42]) {
       await client.createLiveSession({ sdp: 'offer', backendModel: model });
       assert.equal(backend(), 'gpt-5.6-terra', `${model} was delegated to as-is`);
     }

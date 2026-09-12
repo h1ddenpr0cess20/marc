@@ -46,6 +46,7 @@ export const DEFAULT_MODELS = [
   'gpt-live-1-2026-09-11',
   'gpt-5.6-terra',
   'gpt-5.6-luna',
+  'gpt-6',
   'gpt-4o',
   'gpt-realtime-mini',
   'gpt-4o-realtime-preview-2024-12-17',

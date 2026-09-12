@@ -4,13 +4,15 @@ import { sessionConfig } from './persona.js';
 const LIVE_MODEL = /^gpt-live-[a-z0-9.-]+$/;
 
 /**
- * What may stand behind the call as the Responses backend: a text model, not
- * one of the speech, image or embedding ones that share the prefix. The browser
- * picks from the list `/models` filtered this way, and names one when it dials,
- * so the same rule is what vets what it names — a page cannot talk this server
- * into delegating to something that cannot answer.
+ * What may stand behind the call as the Responses backend: a text model from
+ * GPT-5 on, not one of the speech, image or embedding ones that share the
+ * prefix. The browser picks from the list `/models` filtered this way, and
+ * names one when it dials, so the same rule is what vets what it names — a page
+ * cannot talk this server into delegating to something that cannot answer.
+ * Later families are let through by the number rather than by name, so a
+ * GPT-6 needs nothing here to be offered.
  */
-const BACKEND_MODEL = /^(?:gpt-[0-9]|o[0-9])[a-z0-9.-]*$/;
+const BACKEND_MODEL = /^gpt-(?:[5-9]|[1-9][0-9]+)(?:[.-][a-z0-9.-]+)?$/;
 const NOT_BACKEND = /live|realtime|audio|transcribe|tts|image|embedding|moderation|search/;
 
 export function isBackendModel(id) {

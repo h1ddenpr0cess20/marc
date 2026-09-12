@@ -32,7 +32,7 @@ describe('GET /api/models', () => {
       assert.ok(body.models.every((m) => m.id.startsWith('gpt-live-')));
       assert.equal(body.backendModel, 'gpt-5.6-terra');
       assert.equal(body.backendModels[0].id, 'gpt-5.6-terra');
-      assert.ok(body.backendModels.every((m) => !m.id.includes('live')));
+      assert.ok(body.backendModels.every((m) => /^gpt-(?:[5-9]|[1-9][0-9]+)/.test(m.id)));
       assert.deepEqual(body.switches, [{ name: 'web_search', label: 'web search' }]);
     });
   });

@@ -300,7 +300,7 @@ describe('createControls', () => {
     });
 
     it('falls back to the first backend when the configured one is not offered', () => {
-      const chosen = controls.setCatalog({ ...CATALOG, backendModel: 'gpt-9-unreleased' });
+      const chosen = controls.setCatalog({ ...CATALOG, backendModel: 'gpt-5.9-unreleased' });
       assert.equal(chosen.backendModel, 'gpt-5.6-terra');
       assert.equal(page.$('#backend').value, 'gpt-5.6-terra');
     });

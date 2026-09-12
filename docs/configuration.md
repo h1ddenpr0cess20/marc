@@ -28,10 +28,13 @@ Ripple. An authorized voice outside the list can be set with `OPENAI_VOICE`.
 
 The third picker is the other end of the call: the Responses model Marc
 delegates reasoning, lookups and tool calls to. It lists the text models your
-key can reach — the speech, image and embedding ones are left out, since they
-cannot answer a delegation — with `OPENAI_BACKEND_MODEL` preselected and always
-offered, whether or not the key lists it. Picking one that is not a text model
-is refused by the proxy and the configured backend is minted instead.
+key can reach from GPT-5 on — older families, and the speech, image and
+embedding models that share the prefix, are left out; a later family is let
+through by its number, so a GPT-6 appears on its own — with
+`OPENAI_BACKEND_MODEL` preselected
+and always offered, whether or not the key lists it. Naming anything else is
+refused by the proxy and the configured backend is minted instead;
+`OPENAI_BACKEND_MODEL` is how you run on something outside that set.
 
 Changing voice, model or backend reconnects with recent history.
 
