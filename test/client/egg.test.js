@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import * as THREE from 'three';
+import * as GFX from '../../src/client/vendor/gfx/index.js';
 
 import { createEggBuddy } from '../../src/client/egg/index.js';
 import { ENERGY_GAIN, MOODS } from '../../src/client/egg/moods.js';
@@ -100,7 +100,7 @@ describe('motion', () => {
 
 describe('shapeEgg', () => {
   const profile = () => {
-    const geometry = new THREE.SphereGeometry(1, 64, 48);
+    const geometry = new GFX.SphereGeometry(1, 64, 48);
     const p = shapeEgg(geometry.attributes.position.array);
     let top = 0, bottom = 0, height = 0, width = 0;
     for (let i = 0; i < p.length; i += 3) {
@@ -125,7 +125,7 @@ describe('shapeEgg', () => {
   });
 
   it('keeps both ends rounded — a point would read as a teardrop', () => {
-    const geometry = new THREE.SphereGeometry(1, 64, 48);
+    const geometry = new GFX.SphereGeometry(1, 64, 48);
     const p = shapeEgg(geometry.attributes.position.array);
     let widest = 0;
     for (let i = 0; i < p.length; i += 3) widest = Math.max(widest, Math.hypot(p[i], p[i + 2]));
@@ -146,15 +146,15 @@ describe('shapeEgg', () => {
   });
 
   it('is deterministic — no randomness to make Marc differ per load', () => {
-    const once = shapeEgg(new THREE.SphereGeometry(1, 16, 12).attributes.position.array.slice());
-    const twice = shapeEgg(new THREE.SphereGeometry(1, 16, 12).attributes.position.array.slice());
+    const once = shapeEgg(new GFX.SphereGeometry(1, 16, 12).attributes.position.array.slice());
+    const twice = shapeEgg(new GFX.SphereGeometry(1, 16, 12).attributes.position.array.slice());
     assert.deepEqual(Array.from(once), Array.from(twice));
   });
 });
 
 describe('createShellSkin', () => {
   it('goes inert without a document instead of throwing', () => {
-    const skin = createShellSkin(THREE);
+    const skin = createShellSkin(GFX);
     assert.equal(skin.map, null);
     assert.equal(skin.bumpMap, null);
   });
@@ -164,7 +164,7 @@ describe('createEggBuddy', () => {
   const stubStage = () => ({ _scene: {}, _renderer: null, setObject() {} });
 
   it('ignores a state that is not one of the four', () => {
-    const marc = createEggBuddy({ stage: stubStage(), THREE });
+    const marc = createEggBuddy({ stage: stubStage(), GFX });
     marc.setState('speaking');
 
     for (const junk of ['nonsense', 'constructor', '__proto__', 'toString']) {
@@ -174,7 +174,7 @@ describe('createEggBuddy', () => {
   });
 
   it('clamps what it is handed, so a bad level cannot escape the range', () => {
-    const marc = createEggBuddy({ stage: stubStage(), THREE });
+    const marc = createEggBuddy({ stage: stubStage(), GFX });
     assert.doesNotThrow(() => {
       marc.setLevel(4);
       marc.setLevel(-1);
@@ -185,7 +185,7 @@ describe('createEggBuddy', () => {
 
   it('hands the stage a named object, since the exporter writes those names out', () => {
     let object = null;
-    createEggBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, THREE });
+    createEggBuddy({ stage: { _scene: {}, _renderer: null, setObject: (o) => { object = o; } }, GFX });
     assert.equal(object.name, 'marc');
     assert.ok(object.getObjectByName('shell'), 'no shell under the group');
     assert.ok(object.getObjectByName('spinner').getObjectByName('body'));
