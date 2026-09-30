@@ -7,17 +7,17 @@ import { createShellSkin } from './skin.js';
 const RADIUS = 0.78;
 const ROLL_REACH = 0.42;
 
-export function createEggBuddy({ stage, THREE }) {
-  buildEnvironment({ stage, THREE });
+export function createEggBuddy({ stage, GFX }) {
+  buildEnvironment({ stage, GFX });
 
-  const skin = createShellSkin(THREE);
-  const shell = createShell(THREE, skin);
+  const skin = createShellSkin(GFX);
+  const shell = createShell(GFX, skin);
 
-  const marc = new THREE.Group();
+  const marc = new GFX.Group();
   marc.name = 'marc';
-  const spinner = new THREE.Group();
+  const spinner = new GFX.Group();
   spinner.name = 'spinner';
-  const body = new THREE.Group();
+  const body = new GFX.Group();
   body.name = 'body';
 
   marc.add(spinner);
@@ -48,7 +48,7 @@ export function createEggBuddy({ stage, THREE }) {
   let rest = 0;
   let fidgetT = 2.4;
 
-  const timer = new THREE.Timer();
+  const timer = new GFX.Timer();
 
   shell.mesh.onBeforeRender = () => {
     timer.update();
