@@ -25,5 +25,8 @@
     "jsdom": "^30.1.2",
     "madness-engine": "github:h1ddenpr0cess20/madness-engine#b19ba431e50b8d885a6ad2e74a35b4f4236d8579",
     "vite": "^8.3.4"
+  },
+  "overrides": {
+    "minimatch": "^11.0.3"
   }
 }
