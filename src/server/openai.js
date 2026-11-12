@@ -73,7 +73,7 @@ export function createOpenAIClient({
       };
     },
     async createLiveSession({
-      sdp, model, voice, backendModel: backend, memories, resumed, history, toolsOff,
+      sdp, model, voice, backendModel: backend, memories, resumed, history, toolsOff, egg,
     } = {}) {
       if (typeof sdp !== 'string' || !sdp.trim()) throw new Error('An SDP offer is required');
       const chosenModel = typeof model === 'string' && LIVE_MODEL.test(model)
@@ -84,7 +84,7 @@ export function createOpenAIClient({
         method: 'POST',
         body: JSON.stringify({
           session: sessionConfig(chosenModel, chosen, {
-            memories, memory, resumed, history, backendModel: chosenBackend,
+            memories, memory, resumed, history, egg, backendModel: chosenBackend,
             webSearch: webSearch && !(Array.isArray(toolsOff) && toolsOff.includes('web_search')),
             agents: connectors?.agents ?? [], tasks: connectors?.tasks() ?? [],
           }),

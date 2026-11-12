@@ -1,164 +1,179 @@
-import { buildEnvironment } from './environment.js';
-import { ENERGY_GAIN, MOODS } from './moods.js';
-import { approach, spring } from './motion.js';
-import { createShell } from './shell.js';
-import { createShellSkin } from './skin.js';
+import { createEgg, createEggBlot } from 'madness-engine/heroes/debater-egg/index';
+import { createTileKitchen } from 'madness-engine/props/tile-kitchen';
+import { environmentFrom, studioEnvironment } from 'madness-engine/props/metalglobe';
+import { paintRoom } from 'madness-engine/textures/rooms/house';
 
-const RADIUS = 0.78;
-const ROLL_REACH = 0.42;
+import { DEFAULT_LOOK, eggOptions, normalizeLook } from './looks.js';
 
-export function createEggBuddy({ stage, GFX }) {
-  buildEnvironment({ stage, GFX });
+/**
+ * How far he rolls from where he stands while he talks, in tiles. The engine's
+ * Egg keeps closer to a lectern; Marc has the whole floor.
+ */
+export const ROLL_REACH = 0.42;
 
-  const skin = createShellSkin(GFX);
-  const shell = createShell(GFX, skin);
+/** How much of the engine's squash he keeps while he talks. On a counter, the full squash reads as the egg being crushed. */
+export const SQUASH_GAIN = 0.5;
 
-  const marc = new GFX.Group();
-  marc.name = 'marc';
-  const spinner = new GFX.Group();
-  spinner.name = 'spinner';
-  const body = new GFX.Group();
-  body.name = 'body';
+/** How far behind him the tile wall stands, in tiles: a good way off, so he is not crowded against it. */
+export const WALL_BEHIND = 5.2;
 
-  marc.add(spinner);
-  spinner.add(body);
-  body.add(shell.mesh);
+/**
+ * Marc: the engine's Egg on the stage, and what the call drives it by.
+ *
+ * The egg itself — its shape, its shells, its moods and the way it rocks,
+ * squashes and spins — is `heroes/debater-egg` in the engine, and so is the
+ * light it is seen in (`props/metalglobe`'s studio). This holds one of them at
+ * a time, swaps it for another when the look changes, and hands the new one
+ * the state the old one was in.
+ */
+/** No mesh of his casts a shadow or takes one: the blot under him is all the shadow he has. A shadow map leaves a lit gap under a rounded egg, and a glass one would throw as solid a shadow as a stone one. */
+function unshadow(group) {
+  group.traverse((o) => {
+    if (o.isMesh) o.castShadow = o.receiveShadow = false;
+  });
+}
 
-  let mood = MOODS.idle;
+export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
+  /**
+   * What the shell and the kitchen are seen in. Polished metal and glass are
+   * all reflection and want the engine's bright studio, where chrome stays
+   * chrome; everything else is lit by the warm house room, which keeps the
+   * speckles and the grain readable and the brass on the wall gold.
+   */
+  const rooms = new Map();
+  function lightFor(kind) {
+    const bright = kind === 'metal' || kind === 'glass';
+    if (!stage._renderer || typeof document === 'undefined') return;
+    if (!rooms.has(bright)) {
+      rooms.set(bright, bright ? studioEnvironment(GFX, stage._renderer) : environmentFrom(GFX, stage._renderer, paintRoom()));
+    }
+    const environment = rooms.get(bright);
+    if (environment) stage._scene.environment = environment;
+  }
+
+  /** What the stage frames and the egg hangs from, so a swap leaves the camera where it was. */
+  const mount = new GFX.Group();
+  mount.name = 'marc';
+
+  /** What the egg moves under itself as it goes, on the floor the stage rests it on. */
+  const blot = createEggBlot(GFX);
+  blot.name = 'blot';
+  mount.add(blot);
+
+  let current = normalizeLook(look);
+  let egg = null;
   let state = 'idle';
-  const m = { ...MOODS.idle };
+  let level = 0;
 
-  let sustain = 0;
-  let impulse = 0;
-  let energy = 0;
+  function make(next) {
+    const made = createEgg({ GFX, reach: ROLL_REACH, shadow: blot, planted: true, squashGain: SQUASH_GAIN, ...eggOptions(next) });
+    unshadow(made.group);
+    made.setState(state);
+    made.setLevel(level);
+    return made;
+  }
 
-  const sq = { p: 0, v: 0 };
-  const tx = { p: 0, v: 0 };
-  const ty = { p: 0, v: 0 };
-  const tz = { p: 0, v: 0 };
+  function discard(old) {
+    old.group.traverse((o) => {
+      o.geometry?.dispose?.();
+      o.material?.dispose?.();
+    });
+  }
 
-  let t = 0;
-  let spinA = 0;
-  let spinV = 0;
-  let lie = 0;
-  let ang = 0;
-  let x = 0;
-  let dir = 1;
-  let rollPhase = 0;
-  let rest = 0;
-  let fidgetT = 2.4;
-
-  const timer = new GFX.Timer();
-
-  shell.mesh.onBeforeRender = () => {
-    timer.update();
-    const dt = Math.min(timer.getDelta(), 0.05);
-    t += dt;
-
-    impulse = Math.max(0, impulse - impulse * Math.min(1, dt * 3.4) - dt * 0.05);
-    energy = approach(energy, Math.min(1, sustain + impulse), 6, dt);
-
-    for (const k in m) m[k] = approach(m[k], mood[k], 3.4, dt);
-
-    const jitter = m.jitter * (1 + energy * ENERGY_GAIN.jitter);
-    const squash = m.squash * (1 + energy * ENERGY_GAIN.squash);
-    const rockAmp = m.rock + energy * ENERGY_GAIN.rock;
-
-    const spinning = state === 'thinking';
-    lie = approach(lie, spinning ? 1 : 0, 3.2, dt);
-    if (spinning) {
-      spinV += (m.spin - spinV) * Math.min(1, dt * 4.1) - spinV * 0.12 * dt;
-    } else {
-      spinV = approach(spinV, 0, 3.2, dt);
-      if (Math.abs(spinV) < 0.05) spinV = 0;
+  function swap(next) {
+    const old = egg;
+    egg = make(next);
+    mount.add(egg.group);
+    if (old) {
+      mount.remove(old.group);
+      discard(old);
     }
-    spinA += spinV * dt;
-    const precAmp = 0.018 * Math.min(1, Math.abs(spinV) / 6);
-    const precA = spinA * 0.9;
+  }
 
-    const rolling = m.roll > 0.02 && !spinning;
-    let lift = 0;
-    if (rolling) {
-      if (rest > 0) {
-        rest -= dt;
-      } else {
-        const speed = 1.15 * m.roll;
-        rollPhase += dt * speed;
-        ang += dir * dt * speed;
-        x += dir * dt * speed * RADIUS;
-        lift = Math.abs(Math.sin(rollPhase * 1.5)) * 0.035;
-        if (Math.abs(x) > ROLL_REACH) {
-          dir *= -1;
-          rest = 0.5 + Math.random() * 0.6;
-          sq.v += 1.2;
-        }
-      }
-    } else {
-      x = approach(x, 0, 1.8, dt);
-      ang = approach(ang, 0, 1.8, dt);
-      rest = 0;
-    }
+  lightFor(current.kind);
+  swap(current);
+  /** Framed on the egg alone: the blot is wider than he is, and would pull the camera back. */
+  mount.remove(blot);
+  stage.setObject(mount);
+  mount.add(blot);
+  /** `setObject` switches every mesh's shadows on, and the renderer's with them: both go back off. */
+  unshadow(mount);
+  if (stage._renderer?.shadowMap) stage._renderer.shadowMap.enabled = false;
+  /** The floor is where his base is. A hair above it, so it is not fighting the stage's own ground. */
+  const floor = new GFX.Box3().setFromObject(egg.group).min.y;
+  blot.position.y = floor + 0.004;
 
-    if (m.fidget > 0.01) {
-      fidgetT -= dt * m.fidget;
-      if (fidgetT <= 0) {
-        const r = Math.random();
-        if (r < 0.45) sq.v += 1.8;
-        else if (r < 0.75) ty.v += (Math.random() < 0.5 ? -1 : 1) * 2.2;
-        else { tz.v += (Math.random() - 0.5) * 4; tx.v += 1.2; }
-        fidgetT = 2.6 + Math.random() * 4;
-      }
-    }
-
-    spring(sq, 175, 10.5, dt, squash);
-    const rock = Math.sin(t * m.rockSpeed * 2.0) * rockAmp;
-    spring(tz, 68, 6.2, dt, rolling && rest <= 0 ? dir * 0.1 : rock);
-    spring(tx, 68, 6.2, dt, m.lean * 0.2);
-    spring(ty, 38, 4.8, dt, 0);
-
-    const tremor = jitter * 0.014;
-    const breathe = Math.sin(t * 1.3) * 0.007;
-    const orbit = lie * Math.min(1, Math.abs(spinV) / 9) * 0.075;
-
-    marc.position.set(
-      x + Math.cos(spinA * 0.9) * orbit + (Math.random() - 0.5) * tremor,
-      lift + breathe * 0.5 + Math.abs(rock) * 0.34 - lie * 0.2,
-      Math.sin(spinA * 0.9) * orbit + (Math.random() - 0.5) * tremor,
-    );
-    marc.rotation.set(
-      tx.p + Math.sin(precA) * precAmp + (Math.random() - 0.5) * tremor,
-      ty.p,
-      tz.p + Math.cos(precA) * precAmp + (Math.random() - 0.5) * tremor * 1.3,
-    );
-
-    spinner.rotation.y = spinA;
-    body.rotation.set(lie * Math.PI * 0.5, 0, -ang + lie * Math.sin(spinA * 0.9) * 0.05);
-
-    const s = sq.p * 0.085 + breathe;
-    body.scale.set(1 + s * 0.5, 1 - s, 1 + s * 0.5);
-  };
-
-  stage.setObject(marc);
+  /**
+   * He stands on a marble counter against a green tile wall with a brass rail,
+   * the engine's kitchen. The camera looks down at him from the front and may
+   * swing about him, but never behind the wall, under the counter or off to
+   * its sides where there is nothing to see.
+   */
+  const kitchen = createTileKitchen(GFX);
+  kitchen.group.position.set(0, floor - 0.002, -WALL_BEHIND);
+  stage._scene?.add?.(kitchen.group);
+  const camera = stage._camera, controls = stage._controls;
+  if (camera && controls) {
+    /**
+     * He stands high in the frame, since the bar and the caption take the lower
+     * third, and a tall, narrow window sees less of the sides: so the camera
+     * stands back until he fits, as far as its limit.
+     */
+    const aspect = (globalThis.innerWidth || 1) / (globalThis.innerHeight || 1);
+    const back = aspect < 1 ? Math.min(1.9, 1 / Math.max(0.5, aspect) ** 0.9) : 1;
+    camera.position.set(0, floor + 3.0 * back, 6.6 * back);
+    controls.target.set(0, floor + 0.05, 0.3);
+    Object.assign(controls, {
+      enablePan: false,
+      minDistance: 3.4,
+      maxDistance: 16,
+      minPolarAngle: 0.55,
+      maxPolarAngle: 1.45,
+      minAzimuthAngle: -0.95,
+      maxAzimuthAngle: 0.95,
+    });
+    camera.updateProjectionMatrix?.();
+    controls.update();
+  }
 
   return {
     get state() { return state; },
+    get look() { return { ...current }; },
+    /** The group the stage holds. */
+    group: mount,
+    /** The counter and the wall behind him. */
+    kitchen,
 
-    setState(next) {
-      if (!Object.hasOwn(MOODS, next) || next === state) return;
-      state = next;
-      mood = MOODS[next];
-      if (next === 'idle' || next === 'thinking') sustain = 0;
+    /** Puts on another look. Where only the finish changes, the egg already there is refinished. */
+    setLook(next) {
+      const wanted = normalizeLook(next);
+      if (wanted.kind === current.kind && wanted.variant === current.variant) return current;
+      if (wanted.kind === current.kind) {
+        if (wanted.kind === 'original') egg.setVariety(wanted.variant);
+        else if (wanted.kind === 'metal') egg.setMetal(wanted.variant);
+        else if (wanted.kind === 'wood') egg.setWood(wanted.variant);
+        else if (wanted.kind === 'chocolate') egg.setChocolate(wanted.variant);
+        else if (wanted.kind === 'glass') egg.setMist(wanted.variant === 'mist');
+      } else {
+        lightFor(wanted.kind);
+        swap(wanted);
+      }
+      current = wanted;
+      return { ...current };
     },
 
-    setLevel(level) {
-      sustain = Math.min(1, Math.max(0, level));
+    setState(next) {
+      egg.setState(next);
+      state = egg.state;
+    },
+
+    setLevel(next) {
+      level = Math.min(1, Math.max(0, next));
+      egg.setLevel(level);
     },
 
     pulse(weight = 0.3) {
-      const w = Math.min(1, Math.max(0, weight));
-      impulse = Math.min(1, impulse + w);
-      sq.v += w * 2.4;
-      tz.v += (Math.random() - 0.5) * w * 2.6;
+      egg.pulse(weight);
     },
   };
 }

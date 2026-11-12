@@ -1,6 +1,8 @@
 # Marc
 
-A voice agent rendered as an egg. Marc is speckled and cream-shelled: he rocks
+A voice agent rendered as an egg. Marc stands on a marble counter in front of
+bottle-green tile and a brass rail. He is speckled and cream-shelled — or glass
+and misty, metal, wood or chocolate, as you like — and he rocks
 where he stands, lies down and spins like a hard-boiled egg while he thinks, and
 squashes in time with whoever is making sound — all of it driven by a live
 OpenAI GPT-Live conversation, with a Responses backend for reasoning and tools.
@@ -22,7 +24,7 @@ cp .env.example .env      # add your OPENAI_API_KEY
 npm run dev               # → http://localhost:5173
 ```
 
-Requires API access to `gpt-live-1` and to the backend model (`gpt-5.6-terra`
+Requires API access to `gpt-live-1` and to the backend model (`gpt-6.1-terra`
 by default). Voice duration, backend tokens and tool use are billed separately.
 
 Click the mic, allow the browser's microphone prompt, and start talking.
@@ -37,6 +39,15 @@ leaves the answer playing, and the conversation is still there when you turn it
 back on. It also switches itself off after a minute of silence, and the call
 survives that too. Holding the mic down is the hang-up — a ring closes around it
 while you hold, and the call ends when it lands.
+
+The egg is his shell, and the shell changes him. Under `menu` there is a picker
+for it: the original egg (speckled, or plain white or brown), glass with mist, metal in any finish, wood in
+any species, or milk, dark or white chocolate. Metal makes him rude, chocolate
+sweet, wood stubborn and glass transparent. It is all the
+[madness-engine](https://github.com/h1ddenpr0cess20/madness-engine)'s egg; Marc
+draws nothing of his own. Another egg is another conversation: change it in
+the middle of one and it asks first, then starts afresh, and the old one stays in
+the log.
 
 `menu`, in the top corner, is where the panels live: `tools`, `connectors`,
 `memory` and the log, one row each. Picking a row closes the menu behind it,

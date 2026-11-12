@@ -73,7 +73,7 @@ export function loadConfig(env = process.env) {
     baseUrl: env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
     apiKey: env.OPENAI_API_KEY,
     defaultModel: env.OPENAI_LIVE_MODEL || 'gpt-live-1',
-    backendModel: env.OPENAI_BACKEND_MODEL || 'gpt-5.6-terra',
+    backendModel: env.OPENAI_BACKEND_MODEL || 'gpt-6.1-terra',
     webSearch: flag(env.WEB_SEARCH, true),
     defaultVoice,
     voices: KNOWN_VOICES.includes(defaultVoice)

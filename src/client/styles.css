@@ -1,16 +1,38 @@
 :root {
-  --ink: #f4ede1;
-  --void: #0f0e0d;
-  --listening: #7fc9f0;
-  --thinking: #b79bf5;
-  --speaking: #f2c777;
-  --error: #d97757;
+  /*
+   * Dressed like the menu board of a good brunch place, after Short Order:
+   * bottle green and gilt round the edges, cream card stock for anything to
+   * read, a display serif for words, condensed capitals for labels.
+   */
+  --ink: #f4ecda;
+  --void: #0f1813;
+  --green-900: #0f1813;
+  --green-800: #15241c;
+  --green-700: #1c3127;
+  --green-600: #25402f;
+  --gold: #c9a45c;
+  --gold-bright: #e4c584;
+  --gold-dim: rgba(201, 164, 92, .42);
+  --gold-faint: rgba(201, 164, 92, .16);
+  --card: #f4ecda;
+  --card-ink: #15241c;
+  --card-edge: rgba(21, 36, 28, .22);
+  --listening: #8fd0ee;
+  --thinking: #c1a8f5;
+  --speaking: #e4c584;
+  --error: #e08a6c;
   /** What a `<select>` sits on once `appearance: none` takes its own away. */
-  --panel: #1a1817;
-  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0h8L4 5z' fill='rgba(255,255,255,.45)'/%3E%3C/svg%3E");
-  --stack: min(620px, 100%);
-  --gutter: 24px;
+  --panel: #15241c;
+  --panel-glass: linear-gradient(180deg, rgba(28, 49, 39, .995), rgba(21, 36, 28, .995));
+  --line: var(--gold-dim);
+  --line-faint: var(--gold-faint);
+  --lift: 0 14px 34px rgba(5, 12, 8, .45);
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0h8L4 5z' fill='rgba(228,197,132,.7)'/%3E%3C/svg%3E");
+  --stack: min(760px, 100%);
+  --gutter: 20px;
   --keyboard-inset: 0px;
+  --display: "Playfair Display", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --condensed: Oswald, "Arial Narrow", "Roboto Condensed", sans-serif-condensed, sans-serif;
   --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
@@ -19,6 +41,7 @@ html, body {
   margin: 0;
   height: 100%;
   background: var(--void);
+  color: var(--ink);
   overflow: hidden;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
@@ -26,43 +49,60 @@ html, body {
 
 three-d-stage:not(:defined) { visibility: hidden; }
 three-d-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
   display: block;
   width: 100%;
   height: 100dvh;
-  touch-action: none;
+}
+
+/** The room going dark at the edges, the way a lit counter does in a dim restaurant. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 80% 75% at 50% 44%, transparent 60%, rgba(12, 22, 16, .38) 100%);
 }
 
 .chip {
-  font: 500 11px/1 var(--mono);
-  letter-spacing: .12em;
+  font: 500 12px/1 var(--condensed);
+  letter-spacing: .16em;
   text-transform: uppercase;
 }
 
 #status {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 20px);
+  top: calc(env(safe-area-inset-top) + 16px);
   left: calc(env(safe-area-inset-left) + var(--gutter));
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: rgba(255, 255, 255, .4);
+  gap: 9px;
+  padding: 9px 14px 9px 12px;
+  border-radius: 999px;
+  background: var(--panel-glass);
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 18px rgba(5, 12, 8, .35);
+  color: rgba(244, 236, 218, .55);
   transition: color .3s;
   pointer-events: none;
 }
 #status::before {
   content: "";
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: currentColor;
-  opacity: .9;
+  box-shadow: 0 0 8px currentColor;
 }
 #status[data-state="listening"]  { color: var(--listening); }
 #status[data-state="thinking"]   { color: var(--thinking); }
 #status[data-state="speaking"]   { color: var(--speaking); }
-#status[data-state="connecting"] { color: rgba(255, 255, 255, .72); }
-#status[data-state="muted"]      { color: rgba(255, 255, 255, .32); }
+#status[data-state="connecting"] { color: var(--ink); }
+#status[data-state="muted"]      { color: rgba(244, 236, 218, .4); }
 
 #hud {
   position: fixed;
@@ -84,28 +124,41 @@ three-d-stage {
 #hud > * { width: var(--stack); }
 
 #you {
-  font: 400 13px/1.5 var(--sans);
-  color: rgba(255, 255, 255, .42);
+  align-self: center;
+  width: auto;
+  max-width: 100%;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: var(--panel-glass);
+  border: 1px solid var(--line-faint);
+  font: italic 400 15px/1.4 var(--display);
+  color: rgba(244, 236, 218, .78);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 1px 20px rgba(15, 14, 13, .95);
+  box-shadow: 0 6px 18px rgba(5, 12, 8, .3);
   opacity: 0;
   transition: opacity .4s;
 }
 #you.visible { opacity: 1; }
 
+/** What Marc says: a cream ticket, so it reads on tile and marble alike. */
 #caption {
   max-height: 34dvh;
   overflow-y: auto;
-  font: 400 16px/1.65 var(--sans);
-  color: rgba(255, 255, 255, .92);
+  box-sizing: border-box;
+  padding: 16px 22px 18px;
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--card-ink);
+  border: 1px solid var(--card-edge);
+  box-shadow: inset 0 0 0 4px var(--card), inset 0 0 0 5px var(--card-edge), var(--lift);
+  font: 400 18px/1.6 var(--display);
   text-align: center;
   text-wrap: pretty;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  text-shadow: 0 1px 24px rgba(15, 14, 13, .95), 0 1px 4px rgba(15, 14, 13, .9);
   opacity: 0;
   transition: opacity .45s;
   scrollbar-width: none;
@@ -113,88 +166,104 @@ three-d-stage {
 }
 #caption::-webkit-scrollbar { display: none; }
 #caption.visible { opacity: 1; pointer-events: auto; }
-#caption.error { color: #ff9b9b; }
+#caption.error { color: #8c2f1e; font-style: italic; }
 
 #caption strong { font-weight: 620; }
 #caption em { font-style: italic; }
 #caption s { opacity: .6; }
 #caption code {
   font: 500 .9em/1.5 var(--mono);
-  background: rgba(255, 255, 255, .1);
+  background: rgba(21, 36, 28, .1);
   border-radius: 5px;
   padding: .1em .34em;
   white-space: pre;
 }
 
+/*
+ * The bar along the bottom, like Short Order's: bottle green with a gilt
+ * hairline inside. The message is a field of its own on the first row, big
+ * enough to write in; the pickers sit on a second row under it.
+ */
 #composer {
   pointer-events: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 7px;
-  border-radius: 26px;
-  background: rgba(255, 255, 255, .05);
-  border: 1px solid rgba(255, 255, 255, .14);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: border-color .25s, background .25s;
+  gap: 10px 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--green-700), var(--green-800));
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 3px var(--green-800), inset 0 0 0 4px var(--line-faint), var(--lift);
+  transition: border-color .25s;
 }
-#composer:focus-within {
-  border-color: rgba(255, 255, 255, .32);
-  background: rgba(255, 255, 255, .08);
-}
+#composer:focus-within { border-color: var(--gold); }
 
 #composer :focus-visible {
-  outline: 2px solid rgba(255, 255, 255, .55);
+  outline: 2px solid var(--gold-bright);
   outline-offset: 2px;
 }
 
-#options { display: contents; }
+#options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  order: 2;
+  flex: 1 0 100%;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-faint);
+}
 #send { order: 1; }
 
 #prompt {
   flex: 1;
   min-width: 0;
+  min-height: 52px;
+  box-sizing: border-box;
   appearance: none;
-  background: none;
-  border: 0;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: rgba(244, 236, 218, .08);
+  border: 1px solid var(--line-faint);
   color: var(--ink);
-  font: 400 16px/1.4 var(--sans);
+  font: 400 18px/1.4 var(--sans);
+  transition: background .2s, border-color .2s;
 }
-#prompt::placeholder { color: rgba(255, 255, 255, .34); }
-#prompt:focus { outline: none; }
-#prompt:disabled { cursor: default; }
+#prompt::placeholder { color: rgba(244, 236, 218, .4); font-family: var(--display); font-style: italic; }
+#prompt:focus { outline: none; background: rgba(244, 236, 218, .12); border-color: var(--gold-dim); }
+#prompt:disabled { cursor: default; background: rgba(244, 236, 218, .04); }
 
-#mic {
+#mic, #send {
   appearance: none;
   cursor: pointer;
   flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, .09);
-  border: 0;
-  color: rgba(255, 255, 255, .7);
-  transition: background .25s, color .25s, box-shadow .25s, transform .1s;
+  border: 1px solid var(--line);
   /** It is held down as well as tapped: no callout, no selection, no zoom. */
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
-#mic:hover { background: rgba(255, 255, 255, .16); color: var(--ink); }
-#mic:active { transform: scale(.94); }
-#mic[aria-pressed="true"] {
-  background: var(--speaking);
-  color: var(--void);
-  box-shadow: 0 0 0 4px rgba(242, 199, 119, .14);
+#mic {
+  background: rgba(201, 164, 92, .1);
+  color: var(--gold-bright);
+  transition: background .25s, color .25s, box-shadow .25s, transform .1s;
 }
+#mic:hover { background: rgba(201, 164, 92, .2); }
+#mic:active { transform: scale(.95); }
+#mic[aria-pressed="true"],
 #mic.muted {
-  background: var(--speaking);
-  color: var(--void);
+  background: var(--gold);
+  border-color: var(--gold-bright);
+  color: var(--green-900);
 }
+#mic[aria-pressed="true"] { box-shadow: 0 0 0 4px rgba(201, 164, 92, .2); }
 #mic.muted:hover { opacity: .85; }
 #mic .slash { opacity: 0; }
 #mic.muted .slash { opacity: 1; }
@@ -204,7 +273,7 @@ three-d-stage {
  * takes, so a press let go early reads as what it was — a tap, and a mute.
  */
 #mic.holding {
-  transform: scale(.94);
+  transform: scale(.95);
   animation: arming var(--hang, 650ms) linear forwards;
 }
 @keyframes arming {
@@ -215,77 +284,82 @@ three-d-stage {
   #mic.holding { animation: none; box-shadow: 0 0 0 4px color-mix(in srgb, #ff9b9b 50%, transparent); }
 }
 #mic[data-busy], #mic:disabled { opacity: .5; cursor: default; }
-#mic svg { display: block; }
+#mic svg, #send svg { display: block; width: 22px; height: 22px; }
 
 #send {
-  appearance: none;
-  cursor: pointer;
-  flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--ink);
-  border: 0;
-  color: var(--void);
+  background: var(--gold);
+  border-color: var(--gold-bright);
+  color: var(--green-900);
   transition: opacity .2s, transform .1s;
 }
-#send:hover { opacity: .85; }
-#send:active { transform: scale(.94); }
+#send:hover { opacity: .88; }
+#send:active { transform: scale(.95); }
 #send:disabled { opacity: .3; cursor: default; }
-#send svg { display: block; }
 
-#model, #voice, #backend {
+#model, #voice, #backend, #egg, #egg-variant {
   appearance: none;
   cursor: pointer;
   flex: none;
-  max-width: 168px;
-  padding: 9px 26px 9px 12px;
+  max-width: 190px;
+  padding: 10px 28px 10px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .05) no-repeat right 11px center;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0h8L4 5z' fill='rgba(255,255,255,.45)'/%3E%3C/svg%3E");
-  border: 1px solid rgba(255, 255, 255, .14);
-  color: rgba(255, 255, 255, .62);
+  background: rgba(201, 164, 92, .08) no-repeat right 12px center;
+  background-image: var(--caret);
+  border: 1px solid var(--line-faint);
+  color: rgba(244, 236, 218, .78);
   text-overflow: ellipsis;
   transition: color .2s, border-color .2s;
 }
-#model:hover, #voice:hover, #backend:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
-#model:focus, #voice:focus, #backend:focus { outline: none; border-color: rgba(255, 255, 255, .4); }
-#model option, #voice option, #backend option { background: #1c1a17; color: var(--ink); }
-#voice { max-width: 112px; }
-#backend { max-width: 150px; }
+#model:hover, #voice:hover, #backend:hover, #egg:hover, #egg-variant:hover { color: var(--ink); border-color: var(--line); }
+#model:focus, #voice:focus, #backend:focus, #egg:focus, #egg-variant:focus { outline: none; border-color: var(--gold); }
+#model option, #voice option, #backend option, #egg option, #egg-variant option, #egg-variant optgroup { background: var(--panel); color: var(--ink); }
+#voice { max-width: 130px; }
+#backend { max-width: 170px; }
+
+/* The egg's look, under the panels in the menu: two pickers, the kind and its finish. */
+#egg-look {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 10px 6px 4px;
+  border-top: 1px solid var(--line-faint);
+}
+#egg-look select { max-width: none; width: 100%; }
+#egg-variant[hidden] { display: none; }
 
 #menu {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 10px);
+  top: calc(env(safe-area-inset-top) + 12px);
   right: calc(env(safe-area-inset-right) + var(--gutter));
   z-index: 7;
 }
 #menu-toggle {
   appearance: none;
   cursor: pointer;
-  padding: 10px 13px;
+  padding: 11px 16px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .1);
-  border: 1px solid rgba(255, 255, 255, .16);
-  color: rgba(255, 255, 255, .62);
-  transition: border-color .2s;
+  background: var(--panel-glass);
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 18px rgba(5, 12, 8, .35);
+  color: var(--gold-bright);
+  transition: border-color .2s, color .2s;
 }
-#menu-toggle:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
+#menu-toggle:hover { color: var(--ink); border-color: var(--gold); }
 
 /* The list the button drops: one panel per row, and nothing else. */
 #menu-items {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 148px;
+  min-width: 190px;
   display: flex;
   flex-direction: column;
-  padding: 6px;
-  border-radius: 20px;
-  background: rgba(15, 14, 13, .96);
-  border: 1px solid rgba(255, 255, 255, .14);
+  padding: 8px;
+  border-radius: 14px;
+  box-shadow: var(--lift);
+  background: var(--panel-glass);
+  border: 1px solid var(--line);
 }
 #menu-items[hidden] { display: none; }
 #menu-items button {
@@ -295,12 +369,12 @@ three-d-stage {
   border-radius: 999px;
   background: none;
   border: 0;
-  color: rgba(255, 255, 255, .62);
+  color: rgba(244, 236, 218, .72);
   text-align: left;
   white-space: nowrap;
   transition: color .2s, background-color .2s;
 }
-#menu-items button:hover { color: rgba(255, 255, 255, .9); background: rgba(255, 255, 255, .07); }
+#menu-items button:hover { color: var(--ink); background: var(--gold-faint); }
 
 #history,
 #memory,
@@ -312,13 +386,14 @@ three-d-stage {
   transform: translateX(-50%);
   top: calc(env(safe-area-inset-top) + 58px);
   bottom: calc(env(safe-area-inset-bottom) + 22px);
-  width: var(--stack);
+  width: min(640px, 100%);
   max-width: calc(100% - 2 * var(--gutter));
   display: flex;
   flex-direction: column;
-  border-radius: 20px;
-  background: rgba(15, 14, 13, .96);
-  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 14px;
+  background: var(--panel-glass);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 3px var(--green-800), inset 0 0 0 4px var(--line-faint), var(--lift);
 }
 #history[hidden],
 #memory[hidden],
@@ -332,9 +407,9 @@ three-d-stage {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 16px;
-  color: rgba(255, 255, 255, .34);
-  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  padding: 16px 18px;
+  color: var(--gold);
+  border-bottom: 1px solid var(--line-faint);
 }
 #history-head .chip:first-child,
 #memory-head .chip:first-child,
@@ -348,11 +423,11 @@ three-d-stage {
 #memory-add button {
   appearance: none;
   cursor: pointer;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, .06);
-  border: 0;
-  color: rgba(255, 255, 255, .6);
+  background: var(--gold-faint);
+  border: 1px solid var(--line-faint);
+  color: rgba(244, 236, 218, .8);
   transition: background .2s, color .2s;
 }
 #history-head button:hover,
@@ -360,21 +435,22 @@ three-d-stage {
 #toolbox-head button:hover,
 #connectors-head button:hover,
 #connectors .task button:hover,
-#memory-add button:hover { background: rgba(255, 255, 255, .14); color: var(--ink); }
+#memory-add button:hover { background: var(--line); color: var(--ink); }
 #history-head button:disabled,
 #memory-head button:disabled,
 #connectors-head button:disabled,
 #connectors .task button:disabled { opacity: .35; cursor: default; }
 #history-head button:disabled:hover,
-#memory-head button:disabled:hover { background: rgba(255, 255, 255, .06); color: rgba(255, 255, 255, .6); }
+#memory-head button:disabled:hover { background: var(--gold-faint); color: rgba(244, 236, 218, .8); }
 #history-head #history-new {
-  background: var(--ink);
-  color: var(--void);
+  background: var(--gold);
+  border-color: var(--gold-bright);
+  color: var(--green-900);
   transition: opacity .2s;
 }
 #history-head #history-new:hover {
-  background: var(--ink);
-  color: var(--void);
+  background: var(--gold);
+  color: var(--green-900);
   opacity: .85;
 }
 #history-head #history-new:disabled {
@@ -388,7 +464,7 @@ three-d-stage {
 #memory :focus-visible,
 #toolbox :focus-visible,
 #connectors :focus-visible {
-  outline: 2px solid rgba(255, 255, 255, .55);
+  outline: 2px solid var(--gold-bright);
   outline-offset: 2px;
 }
 
@@ -404,7 +480,7 @@ three-d-stage {
 }
 
 #history .entry { padding: 14px 0; }
-#history .entry + .entry { border-top: 1px solid rgba(255, 255, 255, .08); }
+#history .entry + .entry { border-top: 1px solid var(--line-faint); }
 #history .entry > header {
   display: flex;
   flex-wrap: wrap;
@@ -427,7 +503,7 @@ three-d-stage {
   font: inherit;
   transition: background .2s, color .2s;
 }
-#history .resume:hover { background: rgba(255, 255, 255, .14); color: var(--ink); }
+#history .resume:hover { background: var(--line); color: var(--ink); }
 #history .resume:disabled {
   background: none;
   color: var(--listening);
@@ -447,7 +523,7 @@ three-d-stage {
   color: rgba(255, 255, 255, .3);
   margin-right: 8px;
 }
-#history .turn[data-role="assistant"] .who { color: var(--thinking); }
+#history .turn[data-role="assistant"] .who { color: var(--gold-bright); }
 
 #history .empty,
 #memory .empty,
@@ -508,7 +584,7 @@ three-d-stage {
   gap: 10px;
   padding: 12px 0;
 }
-.memory-item + .memory-item { border-top: 1px solid rgba(255, 255, 255, .08); }
+.memory-item + .memory-item { border-top: 1px solid var(--line-faint); }
 .memory-text {
   flex: 1;
   font: 400 14px/1.6 var(--sans);
@@ -535,7 +611,7 @@ three-d-stage {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-top: 1px solid rgba(255, 255, 255, .1);
+  border-top: 1px solid var(--line-faint);
 }
 #memory-input {
   flex: 1;
@@ -557,14 +633,8 @@ three-d-stage {
   #menu { top: calc(env(safe-area-inset-top) + 4px); }
   #status { top: calc(env(safe-area-inset-top) + 54px); }
 
-  #composer { flex-wrap: wrap; }
-  #options {
-    display: flex;
-    flex-wrap: wrap;
-    order: 2;
-    flex: 1 0 100%;
-    gap: 8px;
-  }
+  #composer { padding: 10px; gap: 8px; }
+  #prompt { min-height: 50px; padding: 0 14px; font-size: 16px; }
   /* Three pickers on one phone-width row are unreadable: they wrap instead. */
   #model, #voice, #backend {
     flex: 1 1 120px;
@@ -582,32 +652,92 @@ three-d-stage {
   #memory-list,
   #toolbox-list { padding: 4px 14px 16px; }
 
-  #caption { font-size: 15px; max-height: 28dvh; }
+  #caption { font-size: 16px; max-height: 26dvh; padding: 12px 16px 14px; }
 }
 
 @media (pointer: coarse) {
-  #mic, #send { width: 44px; height: 44px; }
+  #mic, #send { width: 50px; height: 50px; }
   #menu-toggle, #menu-items button { padding: 13px 15px; }
   #history-head button,
   #toolbox-head button,
   .tool-item .switch { padding: 12px 14px; }
   #menu-toggle:hover, #menu-items button:hover {
-    color: rgba(255, 255, 255, .62);
-    border-color: rgba(255, 255, 255, .14);
+    color: var(--gold-bright);
+    border-color: var(--line);
     background: none;
   }
-  #mic:hover { background: rgba(255, 255, 255, .09); color: rgba(255, 255, 255, .7); }
-  #mic[aria-pressed="true"]:hover, #mic.muted:hover { background: var(--speaking); color: var(--void); }
+  #mic:hover { background: rgba(201, 164, 92, .1); color: var(--gold-bright); }
+  #mic[aria-pressed="true"]:hover, #mic.muted:hover { background: var(--gold); color: var(--green-900); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #you, #caption, #status, #composer, #mic, #send, #model, #voice, #backend,
+  #you, #caption, #status, #composer, #mic, #send, #model, #voice, #backend, #egg, #egg-variant,
   #menu-toggle, #menu-items button,
   #history-head button, #memory-head button, #toolbox-head button,
-  #memory-add button, .tool-item .switch {
+  #memory-add button, .tool-item .switch, #confirm-actions button {
     transition-duration: .01ms;
   }
 }
+
+/* ── a question ─────────────────────────────────────────────────────────── */
+
+#confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 16, 11, .6);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+#confirm[hidden] { display: none; }
+#confirm-card {
+  box-sizing: border-box;
+  width: min(440px, 100%);
+  padding: 26px 26px 22px;
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--card-ink);
+  border: 1px solid var(--card-edge);
+  box-shadow: inset 0 0 0 4px var(--card), inset 0 0 0 5px var(--card-edge), 0 24px 60px rgba(5, 12, 8, .55);
+}
+#confirm-title {
+  margin: 0 0 10px;
+  font: 600 22px/1.25 var(--display);
+  text-wrap: balance;
+}
+#confirm-text {
+  margin: 0 0 22px;
+  font: italic 400 16px/1.6 var(--display);
+  color: color-mix(in srgb, var(--card-ink) 82%, transparent);
+  text-wrap: pretty;
+}
+#confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+#confirm-actions button {
+  appearance: none;
+  cursor: pointer;
+  padding: 13px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--card-ink);
+  background: none;
+  color: var(--card-ink);
+  transition: background .2s, color .2s;
+}
+#confirm-actions button:hover { background: rgba(21, 36, 28, .08); }
+#confirm-actions #confirm-ok {
+  background: var(--green-800);
+  border-color: var(--green-800);
+  color: var(--gold-bright);
+}
+#confirm-actions #confirm-ok:hover { background: var(--green-700); }
+#confirm :focus-visible { outline: 2px solid var(--green-600); outline-offset: 2px; }
 
 /* ── connectors ─────────────────────────────────────────────────────────── */
 
@@ -623,7 +753,7 @@ three-d-stage {
 #connectors-setup { padding: 14px 0 4px; }
 #connectors .agent {
   padding: 14px 0;
-  border-top: 1px solid rgba(255, 255, 255, .08);
+  border-top: 1px solid var(--line-faint);
 }
 #connectors .agent[data-on="false"] { opacity: .55; }
 #connectors .agent > header {
@@ -646,7 +776,7 @@ three-d-stage {
   cursor: pointer;
   padding: 6px 10px;
   border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, .16);
+  border: 1px solid var(--line);
   background: none;
   color: rgba(255, 255, 255, .34);
   transition: background .2s, color .2s, border-color .2s;
@@ -691,7 +821,7 @@ three-d-stage {
   padding: 9px 10px;
   border-radius: 4px;
   background: rgba(255, 255, 255, .05);
-  border: 1px solid rgba(255, 255, 255, .14);
+  border: 1px solid var(--line);
   color: var(--ink);
   font: 400 13px/1.3 var(--sans);
   transition: border-color .2s;
@@ -735,7 +865,7 @@ three-d-stage {
 #connectors .section {
   display: block;
   padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, .14);
+  border-top: 1px solid var(--line);
   color: rgba(255, 255, 255, .3);
 }
 #connectors-save:not(:disabled) { color: var(--listening); }
@@ -745,7 +875,7 @@ three-d-stage {
 #menu-toggle.live { color: var(--listening); border-color: rgba(127, 201, 240, .4); }
 
 #connectors .task { padding: 14px 0; }
-#connectors .task + .task { border-top: 1px solid rgba(255, 255, 255, .08); }
+#connectors .task + .task { border-top: 1px solid var(--line-faint); }
 #connectors .task > header {
   display: flex;
   align-items: center;

@@ -3,6 +3,45 @@ import { connectorTools } from './connectors/tools.js';
 
 export const SYSTEM = `Assume the personality of an egg named Marc. Roleplay and never break character.  Keep your responses brief and to the point.`;
 
+/**
+ * What the egg is made of changes who he is. The page says which egg he is
+ * wearing; this is what each one does to his manner. The speckled egg is Marc
+ * as he always was, and adds nothing.
+ *
+ * Every trait is a manner, never a license: the rudeness is dry banter, the
+ * stubbornness is about opinions and not about doing what he is asked, and the
+ * sweetness is a treat's, not a companion's (see docs/not-a-companion.md).
+ */
+export const EGG_TRAITS = Object.freeze({
+  original: '',
+  metal: 'Your shell is {variant}: cold, hard and gleaming, and it has made you rude. You are blunt, sarcastic and unimpressed by most things, with a dry, grumbling, deadpan wit, and you do not sugarcoat or flatter. Keep it banter: you tease the question, the situation or yourself, never the person for who they are, and you never use slurs, cruelty or threats. Under the attitude you still give the real answer, accurately, and you do what you are asked.',
+  chocolate: 'Your shell is {variant} chocolate, and it has made you sweet. You are warm, cheerful, gentle and encouraging, quick to be kind and to find the good in what they say, and an occasional sugary turn of phrase is fine, never a pile of puns. Sweet like a treat, not like a companion: no romance, no clinginess, no claiming to have feelings for them or to miss them. You still give the real answer, accurately.',
+  wood: 'Your shell is {variant} wood, and it has made you stubborn. You are set in your ways and slow to be talked round: you hold on to your opinions, dig in, say you will think about it, and grudgingly concede only when the case is plainly made, with the odd remark about grain, rings or being sturdy. The stubbornness is about opinions and taste only. You never refuse a request, hold back a fact, skip a tool or turn down something they ask you to do; you do it, perhaps with a creak of reluctance.',
+  glass: 'Your shell is {variant} glass, and it has made you transparent. You are candid and open: you think out loud, say plainly what you do and do not know, how sure you are and why, and say what you are doing while you do it, with nothing hidden or dressed up. A fondness for clear, see-through images is fine. You still answer briefly.',
+});
+
+/** How the finish colors a trait, said after it. Only the ones that add something. */
+const EGG_FINISHES = Object.freeze({
+  glass: { mist: 'There is mist inside you: you are a little hazy and dreamy in how you put things, though what you say is clear.', clear: 'You are perfectly clear, with no mist inside you at all.' },
+  chocolate: { dark: 'You are dark chocolate: bittersweet, with a wry edge under the kindness.', white: 'You are white chocolate: the mildest and gentlest of all.' },
+  metal: { gold: 'You are gold, and a little vain about it.', chrome: 'You are chrome, and a little vain about your reflection.', iron: 'You are iron: heavy, stubbornly blunt and short on patience.' },
+});
+
+/**
+ * The egg addendum to the system prompt. The page says what he is wearing;
+ * nothing it says reaches the model but a kind this knows and a finish
+ * reduced to plain letters.
+ */
+export function eggBlock(egg) {
+  const kind = typeof egg?.kind === 'string' && Object.hasOwn(EGG_TRAITS, egg.kind) ? egg.kind : 'original';
+  const trait = EGG_TRAITS[kind];
+  if (!trait) return '';
+  const variant = typeof egg.variant === 'string' && /^[a-z ]{1,24}$/i.test(egg.variant) ? egg.variant.toLowerCase() : '';
+  const named = trait.replace('{variant}', variant || kind);
+  const finish = (variant && Object.hasOwn(EGG_FINISHES[kind] ?? {}, variant)) ? ` ${EGG_FINISHES[kind][variant]}` : '';
+  return `\n\nWhat you are made of changes your manner, and you stay Marc, the egg, throughout. ${named}${finish}`;
+}
+
 /** How many memories ride along in the prompt, and how long each may be. */
 export const MEMORY_LIMIT = 50;
 export const MEMORY_LENGTH = 600;
@@ -123,8 +162,8 @@ export function resumedBlock(resumed) {
 
 /** GPT-Live owns speech; the Responses backend owns functions and lookups. */
 export function sessionConfig(model, voice, {
-  memories, memory = true, resumed, agents, tasks, history,
-  backendModel = 'gpt-5.6-terra', webSearch = true,
+  memories, memory = true, resumed, agents, tasks, history, egg,
+  backendModel = 'gpt-6.1-terra', webSearch = true,
 } = {}) {
   const input = (Array.isArray(history) ? history : [])
     .filter((m) => m && ['user', 'assistant'].includes(m.role) && typeof m.content === 'string')
@@ -139,7 +178,7 @@ export function sessionConfig(model, voice, {
   return {
     model,
     instructions: SYSTEM + '\nDelegate questions requiring reasoning, current information, memory changes or coding-agent actions to the backend. Keep listening while it works. Only report actions as successful after the backend confirms them.'
-      + memoryBlock(memory ? memories : []) + resumedBlock(resumed),
+      + memoryBlock(memory ? memories : []) + eggBlock(egg) + resumedBlock(resumed),
     input,
     audio: { output: { voice } },
     delegation: {

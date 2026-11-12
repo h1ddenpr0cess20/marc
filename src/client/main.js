@@ -1,14 +1,18 @@
 import './styles.css';
-import './vendor/gfx/stage.js';
+import 'madness-engine/gfx/stage';
 
 import { fetchCatalog } from './api.js';
 import { createEggBuddy } from './egg/index.js';
+import { loadLook, saveLook } from './egg/looks.js';
+import { createEggSwitch } from './egg/switch.js';
 import { createHistory } from './history.js';
 import { createMemory } from './memory.js';
 import { createVoiceSession } from './session/index.js';
 import { createTaskBoard, taskNote } from './tasks.js';
 import { createControls } from './ui/controls.js';
 import { createConnectorsPanel } from './ui/connectors.js';
+import { createConfirm } from './ui/confirm.js';
+import { createEggPicker } from './ui/egg.js';
 import { createHistoryPanel } from './ui/history.js';
 import { createToolSwitches } from './tools.js';
 import { createMemoryPanel } from './ui/memory.js';
@@ -21,16 +25,27 @@ const stage = document.querySelector('three-d-stage');
 
 const { GFX } = await stage.ready;
 
-const marc = createEggBuddy({ stage, GFX });
+const look = loadLook();
+const marc = createEggBuddy({ stage, GFX, look });
 const memory = createMemory();
 const switches = createToolSwitches();
 const session = createVoiceSession({ memory, toolsOff: () => switches.off });
+session.egg = look;
 const hud = createHud();
 const menu = createMenu();
 const history = createHistory();
 const historyPanel = createHistoryPanel({ history, onNew: startFresh, onResume: pickUp });
 const memoryPanel = createMemoryPanel({ memory });
 const toolsPanel = createToolsPanel({ switches, onChange: redial });
+
+/**
+ * What he is made of is who he is, so another egg is another conversation: it
+ * asks first when one is under way, and the old one stays in the log.
+ */
+const eggSwitch = createEggSwitch({
+  marc, session, history, confirm: createConfirm(), save: saveLook, startFresh,
+});
+createEggPicker({ look, onChange: (next) => eggSwitch.change(next) });
 
 /**
  * Work handed to a coding agent, and the panel that sets one up.

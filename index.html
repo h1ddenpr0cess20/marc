@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#0f0e0d">
-<meta name="description" content="A voice agent rendered as an egg — speckled, rocking, and squashing in time with whoever is talking.">
+<meta name="theme-color" content="#0f1813">
+<meta name="description" content="A voice agent rendered as an egg, standing on a marble counter in front of green tile — rocking, and squashing in time with whoever is talking.">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Marc — AI assistant avatar</title>
 </head>
 <body>
-<three-d-stage name="marc" background="#0f0e0d"></three-d-stage>
+<three-d-stage name="marc" background="#0f1813"></three-d-stage>
 
 <div id="status" class="chip" data-state="idle">idle</div>
 
@@ -25,6 +25,10 @@
             aria-controls="memory">memory</button>
     <button id="history-toggle" class="chip" type="button" aria-expanded="false"
             aria-controls="history">log</button>
+    <div id="egg-look">
+      <select id="egg" class="chip" aria-label="Egg"></select>
+      <select id="egg-variant" class="chip" aria-label="Egg finish"></select>
+    </div>
   </div>
 </nav>
 
@@ -108,6 +112,17 @@
     <button class="chip" type="submit">add</button>
   </form>
 </section>
+
+<div id="confirm" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+  <div id="confirm-card">
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-text"></p>
+    <div id="confirm-actions">
+      <button id="confirm-cancel" class="chip" type="button"></button>
+      <button id="confirm-ok" class="chip" type="button"></button>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="/src/client/main.js"></script>
 </body>
