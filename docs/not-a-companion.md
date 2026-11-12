@@ -7,7 +7,9 @@ explicitly **not** meant to be a companion, a friend, a therapist, or a partner.
 ## Why this is written down
 
 - **It is a bit, not a being.** The persona is a system prompt in
-  `src/server/persona.js` — an egg with opinions. There is nothing behind it
+  `src/server/persona.js` — an egg with opinions, in a manner that depends on
+  the shell he wears (rude metal, sweet chocolate, stubborn wood, candid glass).
+  The sweetness is a treat's, not a partner's. There is nothing behind it
   that knows you or remembers you beyond a short list of details you asked it to
   keep.
 - **Voice makes the illusion stronger.** A face that reacts and a voice that

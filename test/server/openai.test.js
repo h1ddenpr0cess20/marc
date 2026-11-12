@@ -57,6 +57,15 @@ describe('GPT-Live backend', () => {
     assert.equal(result.session.id, 'live_test');
     assert.ok(!JSON.stringify(result).includes('sk-test'));
   });
+  it('dresses the persona for the egg the page says he is, and for no other', async () => {
+    const { client, stub } = await setup();
+    await client.createLiveSession({ sdp: 'offer', egg: { kind: 'chocolate', variant: 'dark' } });
+    assert.match(stub.requests.at(-1).body.session.instructions, /dark chocolate/);
+    await client.createLiveSession({ sdp: 'offer', egg: { kind: 'unobtainium' } });
+    assert.doesNotMatch(stub.requests.at(-1).body.session.instructions, /Your shell/);
+    await client.createLiveSession({ sdp: 'offer' });
+    assert.doesNotMatch(stub.requests.at(-1).body.session.instructions, /Your shell/);
+  });
   it('lets server and browser disable search without accepting arbitrary tools', async () => {
     for (const env of [{}, { WEB_SEARCH: 'false' }]) {
       const { client, stub } = await setup(env);

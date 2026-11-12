@@ -1,14 +1,16 @@
 import './styles.css';
-import './vendor/gfx/stage.js';
+import 'madness-engine/gfx/stage';
 
 import { fetchCatalog } from './api.js';
 import { createEggBuddy } from './egg/index.js';
+import { loadLook, saveLook } from './egg/looks.js';
 import { createHistory } from './history.js';
 import { createMemory } from './memory.js';
 import { createVoiceSession } from './session/index.js';
 import { createTaskBoard, taskNote } from './tasks.js';
 import { createControls } from './ui/controls.js';
 import { createConnectorsPanel } from './ui/connectors.js';
+import { createEggPicker } from './ui/egg.js';
 import { createHistoryPanel } from './ui/history.js';
 import { createToolSwitches } from './tools.js';
 import { createMemoryPanel } from './ui/memory.js';
@@ -21,10 +23,22 @@ const stage = document.querySelector('three-d-stage');
 
 const { GFX } = await stage.ready;
 
-const marc = createEggBuddy({ stage, GFX });
+const look = loadLook();
+const marc = createEggBuddy({ stage, GFX, look });
+createEggPicker({
+  look,
+  onChange: (next) => {
+    marc.setLook(next);
+    saveLook(next);
+    /** What he is made of is part of who he is, and that is said as a call opens. */
+    session.egg = next;
+    if (session.connected) redial();
+  },
+});
 const memory = createMemory();
 const switches = createToolSwitches();
 const session = createVoiceSession({ memory, toolsOff: () => switches.off });
+session.egg = look;
 const hud = createHud();
 const menu = createMenu();
 const history = createHistory();

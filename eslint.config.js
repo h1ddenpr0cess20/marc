@@ -16,11 +16,6 @@ export default [
   },
 
   {
-    files: ['src/client/vendor/**/*.js'],
-    rules: { 'no-unused-vars': 'off', 'no-empty': 'off' },
-  },
-
-  {
     files: ['src/server/**/*.js', 'test/**/*.js', 'vite.config.js', 'eslint.config.js'],
     languageOptions: {
       ecmaVersion: 'latest',

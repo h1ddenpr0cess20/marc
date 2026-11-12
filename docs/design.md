@@ -28,8 +28,8 @@ second process, and the key lives in one place either way.
 
 ## Storage
 
-History, memory and tool preferences use `marc.history.v1`, `marc.memory.v1`
-and `marc.tools.v1` in browser storage. Relevant memory and resumed history are
+History, memory, tool preferences and the egg use `marc.history.v1`, `marc.memory.v1`,
+`marc.tools.v1` and `marc.egg.v1` in browser storage. Relevant memory and resumed history are
 sent through the proxy to OpenAI when creating a session; the proxy stores no copy.
 Startup history is restricted to user and assistant text, at most 40 messages
 and 6,000 UTF-8 bytes, and supplied as `session.input`.
@@ -81,13 +81,9 @@ src/
     memory.js           What it remembers between calls, in localStorage
     tools.js            Which of the server's tools this browser switched off
     tasks.js            The work agents are doing, mirrored and polled
-    egg/                Geometry and animation. Knows nothing about transports
-      index.js            The controller and the per-frame loop
-      moods.js            Targets per conversational state
-      motion.js           The spring and the chase every channel eases on
-      shell.js            The egg profile, and the material that wears the skin
-      skin.js             Speckled cream, painted once onto a canvas
-      environment.js      Warm studio env, so the shell reads as ceramic
+    egg/                Marc on the engine's stage. Knows nothing about transports
+      index.js            Holds the engine's Egg, swaps it for another look, hands it the call's state
+      looks.js            The looks the picker offers, what the engine is asked for each, and the one remembered
     session/            The call. Emits transport-agnostic events
       index.js            Lifecycle: mic, session, connect, meter, tear down
       webrtc.js           Peer connection, data channel, SDP handshake
@@ -103,9 +99,8 @@ src/
       tools.js            The tool switches behind `tools` in the menu — web search
       connectors.js       The setup and the work board, behind `connectors` in the menu
       controls.js         Mic (tap mutes, hold hangs up), field, send, pickers
+      egg.js              The two pickers in the menu that dress the egg: its kind, and its finish
       viewport.js         Keeps the composer above the on-screen keyboard
-    vendor/
-      gfx/                The 3D engine: <three-d-stage>, WebGPU, else WebGL 2
   server/
     index.js            Entry point
     app.js              The middleware chain
@@ -126,16 +121,31 @@ test/                   node:test, against a stub OpenAI
 .github/workflows/      CI (lint, tests, build smoke test), CodeQL, Docker publish
 ```
 
-`src/client/vendor/gfx/` is the 3D engine, written for these characters rather
-than pulled in: `<three-d-stage>` (studio lighting, ground shadow, orbit
-controls, framing, resize), the scene API the rig is built from — handed over as
-`GFX` — and the same shading in WGSL for WebGPU and GLSL for WebGL 2. WebGPU is
-tried first, WebGL 2 takes over where it is missing or its device is lost, and
-`?renderer=webgl` pins the fallback. The scene was first written against
-three.js r186, and the engine follows its maths closely enough to draw the same
-picture; `vendor/gfx/LICENSE` says which parts are ported.
-The shaders are plain `.glsl` and `.wgsl` files under `vendor/gfx/shaders/`,
-put together per draw by `glsl.js` and `wgsl.js`.
+Nothing is drawn by this repository. The renderer, `<three-d-stage>`, the egg
+and the light it is seen in are all [madness-engine](https://github.com/h1ddenpr0cess20/madness-engine),
+a dev dependency pinned to a commit and bundled in by Vite: `gfx/stage` is the
+stage (WebGPU first, WebGL 2 where it is missing or its device is lost, and
+`?renderer=webgl` pins the fallback), and `heroes/debater-egg` is the egg, with
+its shape, its moods and its rocking, rolling, squashing and spinning. Marc only
+chooses which egg and says what state the call is in.
+
+## The egg
+
+The picker in the menu chooses the egg: the original speckled shell, clear
+glass with its mist (or without), metal in any of the engine's twelve finishes,
+wood in any of its species, or milk, dark or white chocolate. Metal and glass
+are lit by the engine's bright studio, which is what they reflect; the others by
+its darker one, so the speckles and the grain stay readable. The choice is kept
+in `marc.egg.v1`.
+
+What the egg is made of changes who Marc is. The page sends the kind and finish
+when it dials, and `persona.js` adds one paragraph to the voice's instructions
+(not the backend's): metal makes him blunt and rude, chocolate sweet, wood
+stubborn and glass candid. The rudeness is banter, the stubbornness is about
+opinions and never about doing what he is asked, and the sweetness is a treat's
+and not a companion's — see [Not a Companion](not-a-companion.md). Only a kind
+the server knows and a finish of plain letters get that far. Changing the egg
+mid-call redials, as a new voice does, and keeps the conversation.
 
 ## The transport seam
 

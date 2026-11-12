@@ -36,6 +36,15 @@ describe('Live voice session', () => {
     session.backendModel = 'gpt-5.6-terra';
     assert.equal(session.stale, true);
   });
+  it('says which egg he is wearing as the call opens, and a new egg makes the call stale', async () => {
+    setup(); session.egg = { kind: 'metal', variant: 'gold' };
+    await session.start();
+    assert.deepEqual(media.secretRequests[0].egg, { kind: 'metal', variant: 'gold' });
+    assert.equal(session.stale, false);
+    session.egg = { kind: 'wood', variant: 'oak' };
+    assert.equal(session.stale, true);
+    assert.deepEqual(session.egg, { kind: 'wood', variant: 'oak' });
+  });
   it('submits typed input to the delegated backend', async () => {
     setup(); await session.start();
     session.send('  search for the latest news  ');

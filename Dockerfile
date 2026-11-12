@@ -4,6 +4,9 @@
 FROM node:26-alpine AS build
 WORKDIR /app
 
+# madness-engine, the 3D engine, is installed from GitHub.
+RUN apk add --no-cache git
+
 COPY package.json package-lock.json ./
 RUN npm ci
 

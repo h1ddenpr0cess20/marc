@@ -236,7 +236,7 @@ three-d-stage {
 #send:disabled { opacity: .3; cursor: default; }
 #send svg { display: block; }
 
-#model, #voice, #backend {
+#model, #voice, #backend, #egg, #egg-variant {
   appearance: none;
   cursor: pointer;
   flex: none;
@@ -250,11 +250,23 @@ three-d-stage {
   text-overflow: ellipsis;
   transition: color .2s, border-color .2s;
 }
-#model:hover, #voice:hover, #backend:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
-#model:focus, #voice:focus, #backend:focus { outline: none; border-color: rgba(255, 255, 255, .4); }
-#model option, #voice option, #backend option { background: #1c1a17; color: var(--ink); }
+#model:hover, #voice:hover, #backend:hover, #egg:hover, #egg-variant:hover { color: rgba(255, 255, 255, .9); border-color: rgba(255, 255, 255, .28); }
+#model:focus, #voice:focus, #backend:focus, #egg:focus, #egg-variant:focus { outline: none; border-color: rgba(255, 255, 255, .4); }
+#model option, #voice option, #backend option, #egg option, #egg-variant option, #egg-variant optgroup { background: #1c1a17; color: var(--ink); }
 #voice { max-width: 112px; }
 #backend { max-width: 150px; }
+
+/* The egg's look, under the panels in the menu: two pickers, the kind and its finish. */
+#egg-look {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 10px 6px 4px;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+}
+#egg-look select { max-width: none; width: 100%; }
+#egg-variant[hidden] { display: none; }
 
 #menu {
   position: fixed;
@@ -601,7 +613,7 @@ three-d-stage {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #you, #caption, #status, #composer, #mic, #send, #model, #voice, #backend,
+  #you, #caption, #status, #composer, #mic, #send, #model, #voice, #backend, #egg, #egg-variant,
   #menu-toggle, #menu-items button,
   #history-head button, #memory-head button, #toolbox-head button,
   #memory-add button, .tool-item .switch {

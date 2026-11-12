@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
     build: {
       target: 'es2022',
       sourcemap: true,
-      chunkSizeWarningLimit: 800,
+      chunkSizeWarningLimit: 1000,
     },
   };
 });
