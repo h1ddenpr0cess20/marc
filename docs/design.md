@@ -161,8 +161,10 @@ when it dials, and `persona.js` adds one paragraph to the voice's instructions
 stubborn and glass candid. The rudeness is banter, the stubbornness is about
 opinions and never about doing what he is asked, and the sweetness is a treat's
 and not a companion's — see [Not a Companion](not-a-companion.md). Only a kind
-the server knows and a finish of plain letters get that far. Changing the egg
-mid-call redials, as a new voice does, and keeps the conversation.
+the server knows and a finish of plain letters get that far. Another egg is another conversation: changing it with a call up, or a thread open
+in the log, asks first in the page's own dialog (declining puts the old egg back),
+then starts a new conversation. The old one stays in the log. With nothing under
+way the egg just changes.
 
 ## The transport seam
 

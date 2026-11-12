@@ -63,6 +63,36 @@ describe('createEggPicker', () => {
     assert.deepEqual([...page.$('#egg-variant').options].map((o) => o.value), LOOKS.chocolate.variants);
   });
 
+  it('says which egg it was on, and goes back to it when the change is refused', async () => {
+    const calls = [];
+    createEggPicker({
+      root: page.document, look: { kind: 'metal', variant: 'gold' },
+      onChange: (next, before) => { calls.push([next, before]); return false; },
+    });
+    pick('#egg', 'wood');
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(calls[0][0], { kind: 'wood', variant: 'walnut' });
+    assert.deepEqual(calls[0][1], { kind: 'metal', variant: 'gold' });
+    assert.equal(page.$('#egg').value, 'metal');
+    assert.equal(page.$('#egg-variant').value, 'gold');
+    assert.deepEqual([...page.$('#egg-variant').options].map((o) => o.value), LOOKS.metal.variants);
+  });
+
+  it('goes back when the refusal comes later', async () => {
+    createEggPicker({ root: page.document, look: { kind: 'original' }, onChange: async () => false });
+    pick('#egg-variant', 'brown');
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(page.$('#egg-variant').value, 'speckled');
+  });
+
+  it('stays where it is for any answer but a refusal', async () => {
+    const kept = createEggPicker({ root: page.document, look: { kind: 'original' }, onChange: async () => true });
+    pick('#egg-variant', 'white');
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(page.$('#egg-variant').value, 'white');
+    assert.deepEqual(kept.look, { kind: 'original', variant: 'white' });
+  });
+
   it('can be set from outside without announcing it', () => {
     const picker = make({ kind: 'original' });
     picker.set({ kind: 'glass', variant: 'clear' });

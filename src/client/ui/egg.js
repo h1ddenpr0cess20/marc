@@ -2,8 +2,11 @@ import { LOOKS, normalizeLook } from '../egg/looks.js';
 
 /**
  * The two pickers in the menu that dress the egg: which kind, and the finish
- * that kind comes in (the metal, the wood, the chocolate, the mist). A kind with
- * no finish — the original — hides the second.
+ * that kind comes in (the metal, the wood, the chocolate, the mist, the
+ * speckles).
+ *
+ * `onChange` may refuse by answering `false`, now or later (a promise): the
+ * pickers then go back to the egg they were on.
  */
 export function createEggPicker({ root = document, look, onChange } = {}) {
   const kindEl = root.querySelector('#egg');
@@ -25,10 +28,14 @@ export function createEggPicker({ root = document, look, onChange } = {}) {
     if (current.variant) variantEl.value = current.variant;
   }
 
-  function pick(next) {
+  async function pick(next) {
+    const before = current;
     current = normalizeLook(next);
     show();
-    onChange?.({ ...current });
+    if ((await onChange?.({ ...current }, { ...before })) === false) {
+      current = before;
+      show();
+    }
   }
 
   /** A new kind starts in its first finish. */

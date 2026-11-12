@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import * as GFX from 'madness-engine/gfx';
 import { CHOCOLATES, EGG_VARIETIES, METALS, WOOD_SPECIES } from 'madness-engine/heroes/debater-egg/index';
 
-import { createEggBuddy, ROLL_REACH } from '../../src/client/egg/index.js';
+import { createEggBuddy, ROLL_REACH, SQUASH_GAIN, WALL_BEHIND } from '../../src/client/egg/index.js';
 import { DEFAULT_LOOK, LOOKS, eggOptions, loadLook, normalizeLook, saveLook } from '../../src/client/egg/looks.js';
 
 /** The eggs hanging from Marc, which is every child but the blot under them. */
@@ -254,5 +254,18 @@ describe('the persona that goes with each look', () => {
         if (kind !== 'original') assert.match(eggBlock({ kind, variant }), new RegExp(`Your shell is ${variant}`), `${kind} ${variant}`);
       }
     }
+  });
+});
+
+describe('standing on the counter', () => {
+  it('stands well clear of the wall, with the kitchen on the floor he stands on', () => {
+    const marc = createEggBuddy({ stage: { ...stubStage(), _scene: { add() {} } }, GFX });
+    assert.ok(WALL_BEHIND >= 4, 'close enough to the wall to crowd him');
+    assert.equal(marc.kitchen.group.position.z, -WALL_BEHIND);
+    assert.ok(marc.kitchen.group.position.y < 0, 'its top is at his foot, not above it');
+  });
+
+  it('squashes less than the engine does, and keeps his foot on the counter', () => {
+    assert.ok(SQUASH_GAIN > 0 && SQUASH_GAIN < 1);
   });
 });

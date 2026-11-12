@@ -674,10 +674,70 @@ body::after {
   #you, #caption, #status, #composer, #mic, #send, #model, #voice, #backend, #egg, #egg-variant,
   #menu-toggle, #menu-items button,
   #history-head button, #memory-head button, #toolbox-head button,
-  #memory-add button, .tool-item .switch {
+  #memory-add button, .tool-item .switch, #confirm-actions button {
     transition-duration: .01ms;
   }
 }
+
+/* ── a question ─────────────────────────────────────────────────────────── */
+
+#confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 16, 11, .6);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+#confirm[hidden] { display: none; }
+#confirm-card {
+  box-sizing: border-box;
+  width: min(440px, 100%);
+  padding: 26px 26px 22px;
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--card-ink);
+  border: 1px solid var(--card-edge);
+  box-shadow: inset 0 0 0 4px var(--card), inset 0 0 0 5px var(--card-edge), 0 24px 60px rgba(5, 12, 8, .55);
+}
+#confirm-title {
+  margin: 0 0 10px;
+  font: 600 22px/1.25 var(--display);
+  text-wrap: balance;
+}
+#confirm-text {
+  margin: 0 0 22px;
+  font: italic 400 16px/1.6 var(--display);
+  color: color-mix(in srgb, var(--card-ink) 82%, transparent);
+  text-wrap: pretty;
+}
+#confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+#confirm-actions button {
+  appearance: none;
+  cursor: pointer;
+  padding: 13px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--card-ink);
+  background: none;
+  color: var(--card-ink);
+  transition: background .2s, color .2s;
+}
+#confirm-actions button:hover { background: rgba(21, 36, 28, .08); }
+#confirm-actions #confirm-ok {
+  background: var(--green-800);
+  border-color: var(--green-800);
+  color: var(--gold-bright);
+}
+#confirm-actions #confirm-ok:hover { background: var(--green-700); }
+#confirm :focus-visible { outline: 2px solid var(--green-600); outline-offset: 2px; }
 
 /* ── connectors ─────────────────────────────────────────────────────────── */
 

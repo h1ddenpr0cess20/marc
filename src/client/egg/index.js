@@ -11,8 +11,11 @@ import { DEFAULT_LOOK, eggOptions, normalizeLook } from './looks.js';
  */
 export const ROLL_REACH = 0.42;
 
-/** How far behind him the tile wall stands, in tiles. */
-export const WALL_BEHIND = 2.6;
+/** How much of the engine's squash he keeps while he talks. On a counter, the full squash reads as the egg being crushed. */
+export const SQUASH_GAIN = 0.5;
+
+/** How far behind him the tile wall stands, in tiles: a good way off, so he is not crowded against it. */
+export const WALL_BEHIND = 5.2;
 
 /**
  * Marc: the engine's Egg on the stage, and what the call drives it by.
@@ -63,7 +66,7 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   let level = 0;
 
   function make(next) {
-    const made = createEgg({ GFX, reach: ROLL_REACH, shadow: blot, ...eggOptions(next) });
+    const made = createEgg({ GFX, reach: ROLL_REACH, shadow: blot, planted: true, squashGain: SQUASH_GAIN, ...eggOptions(next) });
     unshadow(made.group);
     made.setState(state);
     made.setLevel(level);

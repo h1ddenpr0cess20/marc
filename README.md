@@ -45,8 +45,9 @@ for it: the original egg (speckled, or plain white or brown), glass with mist, m
 any species, or milk, dark or white chocolate. Metal makes him rude, chocolate
 sweet, wood stubborn and glass transparent. It is all the
 [madness-engine](https://github.com/h1ddenpr0cess20/madness-engine)'s egg; Marc
-draws nothing of his own. Changing it mid-call redials and keeps the
-conversation.
+draws nothing of his own. Another egg is another conversation: change it in
+the middle of one and it asks first, then starts afresh, and the old one stays in
+the log.
 
 `menu`, in the top corner, is where the panels live: `tools`, `connectors`,
 `memory` and the log, one row each. Picking a row closes the menu behind it,
