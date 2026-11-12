@@ -129,6 +129,18 @@ stage (WebGPU first, WebGL 2 where it is missing or its device is lost, and
 its shape, its moods and its rocking, rolling, squashing and spinning. Marc only
 chooses which egg and says what state the call is in.
 
+## The kitchen
+
+He stands on a marble counter against a wall of bottle-green glazed tile with a
+brass rail, all of it the engine's `props/tile-kitchen` (the marble, the tile and
+the brass are painted by `textures/kitchen`, ported from Short Order). The
+camera looks down at him from the front and may swing about him within limits:
+never behind the wall, under the counter or off to its sides, and it stands
+further back on a tall, narrow window. The page is dressed to match, after Short
+Order's menu board: bottle green and gilt, a cream ticket for what he says, a
+display serif for words and condensed capitals for labels. The message field is
+the first row of the bar and the pickers sit on a second row under it.
+
 ## The egg
 
 The picker in the menu chooses the egg: the original shell (speckled, or plain

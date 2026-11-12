@@ -1,6 +1,7 @@
 # Marc
 
-A voice agent rendered as an egg. Marc is speckled and cream-shelled — or glass
+A voice agent rendered as an egg. Marc stands on a marble counter in front of
+bottle-green tile and a brass rail. He is speckled and cream-shelled — or glass
 and misty, metal, wood or chocolate, as you like — and he rocks
 where he stands, lies down and spins like a hard-boiled egg while he thinks, and
 squashes in time with whoever is making sound — all of it driven by a live
@@ -23,7 +24,7 @@ cp .env.example .env      # add your OPENAI_API_KEY
 npm run dev               # → http://localhost:5173
 ```
 
-Requires API access to `gpt-live-1` and to the backend model (`gpt-5.6-terra`
+Requires API access to `gpt-live-1` and to the backend model (`gpt-6.1-terra`
 by default). Voice duration, backend tokens and tool use are billed separately.
 
 Click the mic, allow the browser's microphone prompt, and start talking.

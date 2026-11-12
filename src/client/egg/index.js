@@ -1,6 +1,7 @@
 import { createEgg, createEggBlot } from 'madness-engine/heroes/debater-egg/index';
+import { createTileKitchen } from 'madness-engine/props/tile-kitchen';
 import { environmentFrom, studioEnvironment } from 'madness-engine/props/metalglobe';
-import { paintRoom } from 'madness-engine/textures/rooms/studio';
+import { paintRoom } from 'madness-engine/textures/rooms/house';
 
 import { DEFAULT_LOOK, eggOptions, normalizeLook } from './looks.js';
 
@@ -9,6 +10,9 @@ import { DEFAULT_LOOK, eggOptions, normalizeLook } from './looks.js';
  * Egg keeps closer to a lectern; Marc has the whole floor.
  */
 export const ROLL_REACH = 0.42;
+
+/** How far behind him the tile wall stands, in tiles. */
+export const WALL_BEHIND = 2.6;
 
 /**
  * Marc: the engine's Egg on the stage, and what the call drives it by.
@@ -28,9 +32,10 @@ function unshadow(group) {
 
 export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   /**
-   * What the shell is seen in. Metal and glass are all reflection and want the
-   * engine's bright studio; the rest are lit from a darker room, so the
-   * speckles and the grain stay readable rather than blowing out.
+   * What the shell and the kitchen are seen in. Polished metal and glass are
+   * all reflection and want the engine's bright studio, where chrome stays
+   * chrome; everything else is lit by the warm house room, which keeps the
+   * speckles and the grain readable and the brass on the wall gold.
    */
   const rooms = new Map();
   function lightFor(kind) {
@@ -92,13 +97,49 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   unshadow(mount);
   if (stage._renderer?.shadowMap) stage._renderer.shadowMap.enabled = false;
   /** The floor is where his base is. A hair above it, so it is not fighting the stage's own ground. */
-  blot.position.y = new GFX.Box3().setFromObject(egg.group).min.y + 0.004;
+  const floor = new GFX.Box3().setFromObject(egg.group).min.y;
+  blot.position.y = floor + 0.004;
+
+  /**
+   * He stands on a marble counter against a green tile wall with a brass rail,
+   * the engine's kitchen. The camera looks down at him from the front and may
+   * swing about him, but never behind the wall, under the counter or off to
+   * its sides where there is nothing to see.
+   */
+  const kitchen = createTileKitchen(GFX);
+  kitchen.group.position.set(0, floor - 0.002, -WALL_BEHIND);
+  stage._scene?.add?.(kitchen.group);
+  const camera = stage._camera, controls = stage._controls;
+  if (camera && controls) {
+    /**
+     * He stands high in the frame, since the bar and the caption take the lower
+     * third, and a tall, narrow window sees less of the sides: so the camera
+     * stands back until he fits, as far as its limit.
+     */
+    const aspect = (globalThis.innerWidth || 1) / (globalThis.innerHeight || 1);
+    const back = aspect < 1 ? Math.min(1.9, 1 / Math.max(0.5, aspect) ** 0.9) : 1;
+    camera.position.set(0, floor + 3.0 * back, 6.6 * back);
+    controls.target.set(0, floor + 0.05, 0.3);
+    Object.assign(controls, {
+      enablePan: false,
+      minDistance: 3.4,
+      maxDistance: 16,
+      minPolarAngle: 0.55,
+      maxPolarAngle: 1.45,
+      minAzimuthAngle: -0.95,
+      maxAzimuthAngle: 0.95,
+    });
+    camera.updateProjectionMatrix?.();
+    controls.update();
+  }
 
   return {
     get state() { return state; },
     get look() { return { ...current }; },
     /** The group the stage holds. */
     group: mount,
+    /** The counter and the wall behind him. */
+    kitchen,
 
     /** Puts on another look. Where only the finish changes, the egg already there is refinished. */
     setLook(next) {
