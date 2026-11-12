@@ -1,4 +1,4 @@
-import { createEgg } from 'madness-engine/heroes/debater-egg/index';
+import { createEgg, createEggBlot } from 'madness-engine/heroes/debater-egg/index';
 import { environmentFrom, studioEnvironment } from 'madness-engine/props/metalglobe';
 import { paintRoom } from 'madness-engine/textures/rooms/studio';
 
@@ -19,6 +19,13 @@ export const ROLL_REACH = 0.42;
  * a time, swaps it for another when the look changes, and hands the new one
  * the state the old one was in.
  */
+/** No mesh of his casts a shadow or takes one: the blot under him is all the shadow he has. A shadow map leaves a lit gap under a rounded egg, and a glass one would throw as solid a shadow as a stone one. */
+function unshadow(group) {
+  group.traverse((o) => {
+    if (o.isMesh) o.castShadow = o.receiveShadow = false;
+  });
+}
+
 export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   /**
    * What the shell is seen in. Metal and glass are all reflection and want the
@@ -28,7 +35,7 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   const rooms = new Map();
   function lightFor(kind) {
     const bright = kind === 'metal' || kind === 'glass';
-    if (!stage._renderer) return;
+    if (!stage._renderer || typeof document === 'undefined') return;
     if (!rooms.has(bright)) {
       rooms.set(bright, bright ? studioEnvironment(GFX, stage._renderer) : environmentFrom(GFX, stage._renderer, paintRoom()));
     }
@@ -40,18 +47,19 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   const mount = new GFX.Group();
   mount.name = 'marc';
 
+  /** What the egg moves under itself as it goes, on the floor the stage rests it on. */
+  const blot = createEggBlot(GFX);
+  blot.name = 'blot';
+  mount.add(blot);
+
   let current = normalizeLook(look);
   let egg = null;
   let state = 'idle';
   let level = 0;
 
   function make(next) {
-    const made = createEgg({ GFX, reach: ROLL_REACH, ...eggOptions(next) });
-    made.group.traverse((o) => {
-      if (!o.isMesh) return;
-      /** The mist is a vision inside the glass, not a thing with a shadow. */
-      o.castShadow = o.receiveShadow = o !== made.mist;
-    });
+    const made = createEgg({ GFX, reach: ROLL_REACH, shadow: blot, ...eggOptions(next) });
+    unshadow(made.group);
     made.setState(state);
     made.setLevel(level);
     return made;
@@ -76,7 +84,15 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
 
   lightFor(current.kind);
   swap(current);
+  /** Framed on the egg alone: the blot is wider than he is, and would pull the camera back. */
+  mount.remove(blot);
   stage.setObject(mount);
+  mount.add(blot);
+  /** `setObject` switches every mesh's shadows on, and the renderer's with them: both go back off. */
+  unshadow(mount);
+  if (stage._renderer?.shadowMap) stage._renderer.shadowMap.enabled = false;
+  /** The floor is where his base is. A hair above it, so it is not fighting the stage's own ground. */
+  blot.position.y = new GFX.Box3().setFromObject(egg.group).min.y + 0.004;
 
   return {
     get state() { return state; },
@@ -89,7 +105,8 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
       const wanted = normalizeLook(next);
       if (wanted.kind === current.kind && wanted.variant === current.variant) return current;
       if (wanted.kind === current.kind) {
-        if (wanted.kind === 'metal') egg.setMetal(wanted.variant);
+        if (wanted.kind === 'original') egg.setVariety(wanted.variant);
+        else if (wanted.kind === 'metal') egg.setMetal(wanted.variant);
         else if (wanted.kind === 'wood') egg.setWood(wanted.variant);
         else if (wanted.kind === 'chocolate') egg.setChocolate(wanted.variant);
         else if (wanted.kind === 'glass') egg.setMist(wanted.variant === 'mist');

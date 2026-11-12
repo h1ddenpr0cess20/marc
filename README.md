@@ -40,7 +40,7 @@ survives that too. Holding the mic down is the hang-up — a ring closes around 
 while you hold, and the call ends when it lands.
 
 The egg is his shell, and the shell changes him. Under `menu` there is a picker
-for it: the original speckled egg, glass with mist, metal in any finish, wood in
+for it: the original egg (speckled, or plain white or brown), glass with mist, metal in any finish, wood in
 any species, or milk, dark or white chocolate. Metal makes him rude, chocolate
 sweet, wood stubborn and glass transparent. It is all the
 [madness-engine](https://github.com/h1ddenpr0cess20/madness-engine)'s egg; Marc

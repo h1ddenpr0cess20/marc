@@ -1,4 +1,4 @@
-import { CHOCOLATES, METALS, WOOD_SPECIES } from 'madness-engine/heroes/debater-egg/index';
+import { CHOCOLATES, EGG_VARIETIES, METALS, WOOD_SPECIES } from 'madness-engine/heroes/debater-egg/index';
 
 /**
  * The looks Marc comes in. What each one is — its shell, its finish, how it
@@ -9,14 +9,14 @@ import { CHOCOLATES, METALS, WOOD_SPECIES } from 'madness-engine/heroes/debater-
  * it takes, with the first as the one it starts in.
  */
 export const LOOKS = Object.freeze({
-  original: { label: 'speckled', appearance: 'original', variants: [] },
+  original: { label: 'original', appearance: 'original', variants: Object.keys(EGG_VARIETIES) },
   glass: { label: 'glass', appearance: 'glass', variants: ['mist', 'clear'] },
   metal: { label: 'metal', appearance: 'metal', variants: Object.keys(METALS) },
   wood: { label: 'wood', appearance: 'wood', variants: Object.keys(WOOD_SPECIES) },
   chocolate: { label: 'chocolate', appearance: 'chocolate', variants: Object.keys(CHOCOLATES) },
 });
 
-export const DEFAULT_LOOK = Object.freeze({ kind: 'original', variant: null });
+export const DEFAULT_LOOK = Object.freeze({ kind: 'original', variant: 'speckled' });
 
 /** A look made well-formed: an unknown kind is the original, a variant the kind does not have is its first. */
 export function normalizeLook(look) {
@@ -34,7 +34,7 @@ export function eggOptions(look) {
     case 'metal': return { appearance: 'metal', metal: variant };
     case 'wood': return { appearance: 'wood', species: variant, finish: 'lacquered' };
     case 'chocolate': return { appearance: 'chocolate', chocolate: variant };
-    default: return { appearance: 'original' };
+    default: return { appearance: 'original', variety: variant };
   }
 }
 

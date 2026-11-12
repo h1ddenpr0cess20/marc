@@ -36,11 +36,20 @@ describe('createEggPicker', () => {
     assert.equal(page.$('#egg-variant').value, 'teak');
   });
 
-  it('hides the finish picker for an egg with no finish', () => {
+  it('offers the original egg speckled, white or brown, and shows its finish picker for every kind', () => {
     make({ kind: 'original' });
-    assert.equal(page.$('#egg-variant').hidden, true);
-    pick('#egg', 'metal');
-    assert.equal(page.$('#egg-variant').hidden, false);
+    assert.deepEqual([...page.$('#egg-variant').options].map((o) => o.value), ['speckled', 'white', 'brown']);
+    assert.equal(page.$('#egg-variant').value, 'speckled');
+    for (const kind of Object.keys(LOOKS)) {
+      pick('#egg', kind);
+      assert.equal(page.$('#egg-variant').hidden, false, kind);
+    }
+  });
+
+  it('says which variety of the original was picked', () => {
+    make({ kind: 'original' });
+    pick('#egg-variant', 'white');
+    assert.deepEqual(changes.at(-1), { kind: 'original', variant: 'white' });
   });
 
   it('starts a new kind in its first finish and says what was picked', () => {

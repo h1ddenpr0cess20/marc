@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import * as GFX from 'madness-engine/gfx';
-import { CHOCOLATES, METALS, WOOD_SPECIES } from 'madness-engine/heroes/debater-egg/index';
+import { CHOCOLATES, EGG_VARIETIES, METALS, WOOD_SPECIES } from 'madness-engine/heroes/debater-egg/index';
 
 import { createEggBuddy, ROLL_REACH } from '../../src/client/egg/index.js';
 import { DEFAULT_LOOK, LOOKS, eggOptions, loadLook, normalizeLook, saveLook } from '../../src/client/egg/looks.js';
+
+/** The eggs hanging from Marc, which is every child but the blot under them. */
+const eggsOf = (marc) => marc.group.children.filter((c) => c.name !== 'blot');
 
 const stubStage = (onObject = () => {}) => ({ _scene: {}, _renderer: null, setObject: onObject });
 
@@ -21,7 +24,8 @@ function fakeStorage(initial = {}) {
 describe('LOOKS', () => {
   it('offers the speckled egg, glass with mist, every metal, every wood and chocolate', () => {
     assert.deepEqual(Object.keys(LOOKS), ['original', 'glass', 'metal', 'wood', 'chocolate']);
-    assert.deepEqual(LOOKS.original.variants, []);
+    assert.deepEqual(LOOKS.original.variants, Object.keys(EGG_VARIETIES));
+    assert.deepEqual(LOOKS.original.variants, ['speckled', 'white', 'brown']);
     assert.deepEqual(LOOKS.glass.variants, ['mist', 'clear']);
     assert.deepEqual(LOOKS.metal.variants, Object.keys(METALS));
     assert.deepEqual(LOOKS.wood.variants, Object.keys(WOOD_SPECIES));
@@ -43,7 +47,8 @@ describe('normalizeLook', () => {
   it('gives a kind its first finish when the one named is not its own', () => {
     assert.deepEqual(normalizeLook({ kind: 'metal', variant: 'oak' }), { kind: 'metal', variant: 'steel' });
     assert.deepEqual(normalizeLook({ kind: 'wood' }), { kind: 'wood', variant: 'walnut' });
-    assert.deepEqual(normalizeLook({ kind: 'original', variant: 'gold' }), { kind: 'original', variant: null });
+    assert.deepEqual(normalizeLook({ kind: 'original', variant: 'gold' }), { kind: 'original', variant: 'speckled' });
+    assert.deepEqual(normalizeLook({ kind: 'original', variant: null }), DEFAULT_LOOK, 'an egg saved before there were varieties');
   });
 
   it('keeps a finish that is the kind’s own', () => {
@@ -53,7 +58,8 @@ describe('normalizeLook', () => {
 
 describe('eggOptions', () => {
   it('asks the engine for each look by its own names', () => {
-    assert.deepEqual(eggOptions(DEFAULT_LOOK), { appearance: 'original' });
+    assert.deepEqual(eggOptions(DEFAULT_LOOK), { appearance: 'original', variety: 'speckled' });
+    assert.deepEqual(eggOptions({ kind: 'original', variant: 'brown' }), { appearance: 'original', variety: 'brown' });
     assert.deepEqual(eggOptions({ kind: 'glass', variant: 'mist' }), { appearance: 'glass', mist: true });
     assert.deepEqual(eggOptions({ kind: 'glass', variant: 'clear' }), { appearance: 'glass', mist: false });
     assert.deepEqual(eggOptions({ kind: 'metal', variant: 'gold' }), { appearance: 'metal', metal: 'gold' });
@@ -110,6 +116,38 @@ describe('createEggBuddy', () => {
     assert.ok(object.getObjectByName('spinner').getObjectByName('body'));
   });
 
+  it('leaves every mesh without shadows, though the stage switches them on, and the renderer’s shadow map off', () => {
+    const renderer = { shadowMap: { enabled: true } };
+    const stage = {
+      _scene: {}, _renderer: renderer,
+      setObject: (o) => o.traverse((c) => { if (c.isMesh) c.castShadow = c.receiveShadow = true; }),
+    };
+    const marc = createEggBuddy({ stage, GFX, look: { kind: 'glass', variant: 'mist' } });
+    marc.setLook({ kind: 'wood', variant: 'oak' });
+    marc.setLook({ kind: 'glass', variant: 'mist' });
+    let meshes = 0;
+    marc.group.traverse((c) => {
+      if (!c.isMesh) return;
+      meshes++;
+      assert.equal(c.castShadow, false, `${c.name} casts a shadow`);
+      assert.equal(c.receiveShadow, false, `${c.name} takes a shadow`);
+    });
+    assert.ok(meshes > 1);
+    assert.equal(renderer.shadowMap.enabled, false);
+  });
+
+  it('keeps a blot under the egg on the floor, that the egg moves and a swap keeps', () => {
+    let framed = null;
+    const marc = createEggBuddy({ stage: stubStage((o) => { framed = o.getObjectByName('blot'); }), GFX });
+    assert.ok(!framed, 'the camera is framed on the egg, not its blot');
+    const blot = marc.group.getObjectByName('blot');
+    assert.ok(blot);
+    assert.ok(blot.position.y < 0 || blot.position.y > -2, 'it sits on the floor');
+    marc.setLook({ kind: 'chocolate', variant: 'milk' });
+    assert.equal(marc.group.getObjectByName('blot'), blot, 'one blot, whichever egg is on it');
+    assert.equal(eggsOf(marc).length, 1);
+  });
+
   it('has an egg on the stage before the stage frames it, or it would frame nothing', () => {
     let meshes = 0;
     createEggBuddy({ stage: stubStage((o) => o.traverse((c) => { if (c.isMesh) meshes++; })), GFX });
@@ -119,7 +157,7 @@ describe('createEggBuddy', () => {
   it('rolls as far as Marc does, which is farther than the debater’s egg', () => {
     const marc = createEggBuddy({ stage: stubStage(), GFX });
     assert.equal(ROLL_REACH, 0.42);
-    assert.ok(marc.group.children[0]);
+    assert.ok(eggsOf(marc)[0]);
   });
 
   describe('the look', () => {
@@ -139,12 +177,12 @@ describe('createEggBuddy', () => {
     it('swaps kind for kind, one egg at a time, and keeps the state it was in', () => {
       const marc = createEggBuddy({ stage: stubStage(), GFX });
       marc.setState('speaking');
-      assert.equal(marc.group.children.length, 1);
-      const before = marc.group.children[0];
+      assert.equal(eggsOf(marc).length, 1);
+      const before = eggsOf(marc)[0];
 
       marc.setLook({ kind: 'chocolate', variant: 'milk' });
-      assert.equal(marc.group.children.length, 1, 'the old egg is still hanging there');
-      assert.notEqual(marc.group.children[0], before);
+      assert.equal(eggsOf(marc).length, 1, 'the old egg is still hanging there');
+      assert.notEqual(eggsOf(marc)[0], before);
       assert.equal(shellOf(marc).material.name, 'chocolate-eggshell');
       assert.equal(marc.state, 'speaking');
       assert.deepEqual(marc.look, { kind: 'chocolate', variant: 'milk' });
@@ -152,24 +190,35 @@ describe('createEggBuddy', () => {
 
     it('refinishes the egg it has when only the finish changes', () => {
       const marc = createEggBuddy({ stage: stubStage(), GFX, look: { kind: 'metal', variant: 'steel' } });
-      const egg = marc.group.children[0];
+      const egg = eggsOf(marc)[0];
       marc.setLook({ kind: 'metal', variant: 'copper' });
-      assert.equal(marc.group.children[0], egg);
+      assert.equal(eggsOf(marc)[0], egg);
       assert.equal(shellOf(marc).material.roughness, METALS.copper.roughness);
 
       marc.setLook({ kind: 'metal', variant: 'copper' });
-      assert.equal(marc.group.children[0], egg);
+      assert.equal(eggsOf(marc)[0], egg);
 
       marc.setLook({ kind: 'wood', variant: 'oak' });
-      const wood = marc.group.children[0];
+      const wood = eggsOf(marc)[0];
       marc.setLook({ kind: 'wood', variant: 'maple' });
-      assert.equal(marc.group.children[0], wood);
+      assert.equal(eggsOf(marc)[0], wood);
 
       marc.setLook({ kind: 'glass', variant: 'mist' });
-      const glass = marc.group.children[0];
+      const glass = eggsOf(marc)[0];
       marc.setLook({ kind: 'glass', variant: 'clear' });
-      assert.equal(marc.group.children[0], glass);
+      assert.equal(eggsOf(marc)[0], glass);
       assert.equal(marc.group.getObjectByName('mist').visible, false);
+    });
+
+    it('lays a plain white or brown shell on the original without a new egg', () => {
+      const marc = createEggBuddy({ stage: stubStage(), GFX });
+      const egg = eggsOf(marc)[0];
+      marc.setLook({ kind: 'original', variant: 'brown' });
+      assert.equal(eggsOf(marc)[0], egg);
+      assert.equal(shellOf(marc).material.map, null);
+      assert.ok(shellOf(marc).material.color.r > shellOf(marc).material.color.b, 'brown is warm');
+      marc.setLook({ kind: 'original', variant: 'speckled' });
+      assert.deepEqual(marc.look, DEFAULT_LOOK);
     });
 
     it('takes a look it does not know for the original', () => {
@@ -184,7 +233,7 @@ describe('createEggBuddy', () => {
       for (const [kind, entry] of Object.entries(LOOKS)) {
         for (const variant of entry.variants.length ? entry.variants : [null]) {
           assert.doesNotThrow(() => marc.setLook({ kind, variant }), `${kind} ${variant}`);
-          assert.equal(marc.group.children.length, 1);
+          assert.equal(eggsOf(marc).length, 1);
         }
       }
     });

@@ -131,12 +131,17 @@ chooses which egg and says what state the call is in.
 
 ## The egg
 
-The picker in the menu chooses the egg: the original speckled shell, clear
-glass with its mist (or without), metal in any of the engine's twelve finishes,
+The picker in the menu chooses the egg: the original shell (speckled, or plain
+white or brown), clear glass with its mist (or without), metal in any of the engine's twelve finishes,
 wood in any of its species, or milk, dark or white chocolate. Metal and glass
 are lit by the engine's bright studio, which is what they reflect; the others by
 its darker one, so the speckles and the grain stay readable. The choice is kept
 in `marc.egg.v1`.
+
+He has no shadow map. The stage's own shadows are off, and under him is the
+engine's blot, a soft disc that follows him and thins as he lifts: a shadow map
+leaves a lit gap under a rounded egg, and a glass one throws as solid a shadow as
+a stone one.
 
 What the egg is made of changes who Marc is. The page sends the kind and finish
 when it dials, and `persona.js` adds one paragraph to the voice's instructions
