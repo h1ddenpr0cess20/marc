@@ -30,8 +30,8 @@ describe('GET /api/models', () => {
       assert.equal(body.voice, 'stone');
       assert.ok(body.voices.includes('stone'));
       assert.ok(body.models.every((m) => m.id.startsWith('gpt-live-')));
-      assert.equal(body.backendModel, 'gpt-5.6-terra');
-      assert.equal(body.backendModels[0].id, 'gpt-5.6-terra');
+      assert.equal(body.backendModel, 'gpt-6.1-terra');
+      assert.equal(body.backendModels[0].id, 'gpt-6.1-terra');
       assert.ok(body.backendModels.every((m) => /^gpt-(?:[5-9]|[1-9][0-9]+)/.test(m.id)));
       assert.deepEqual(body.switches, [{ name: 'web_search', label: 'web search' }]);
     });
@@ -73,7 +73,7 @@ describe('POST /api/session', () => {
       assert.equal(picked.body.backendModel, 'gpt-5.6-luna');
 
       const bogus = await request('/api/session', post({ sdp: 'v=0 offer', backendModel: 'whisper-1-realtime' }));
-      assert.equal(bogus.body.backendModel, 'gpt-5.6-terra');
+      assert.equal(bogus.body.backendModel, 'gpt-6.1-terra');
     });
   });
 

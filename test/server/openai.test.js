@@ -17,7 +17,7 @@ describe('GPT-Live backend', () => {
   it('offers text models from GPT-5 on as backends, the configured one first', async () => {
     const { client } = await setup({ OPENAI_BACKEND_MODEL: 'gpt-5.6-luna' });
     const ids = (await client.catalog()).backendModels.map((m) => m.id);
-    assert.deepEqual(ids, ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-6'],
+    assert.deepEqual(ids, ['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-6', 'gpt-6.1-terra'],
       'dated snapshots and codex builds are the same model again, or not for this');
   });
   it('keeps a configured backend the key cannot list in the picker', async () => {
@@ -34,10 +34,10 @@ describe('GPT-Live backend', () => {
     assert.equal(picked.backendModel, 'gpt-5.6-luna');
 
     const refused = ['gpt-4o', 'gpt-live-1', 'tts-realtime', 'text-embedding-3-large',
-      'gpt-5.6-terra-2026-08-20', 'gpt-5.6-codex', 'gpt-5.6-codex-mini', 'not-a-model', 42];
+      'gpt-5.6-terra-2026-08-20', 'gpt-6.1-terra-2026-10-02', 'gpt-5.6-codex', 'gpt-5.6-codex-mini', 'not-a-model', 42];
     for (const model of refused) {
       await client.createLiveSession({ sdp: 'offer', backendModel: model });
-      assert.equal(backend(), 'gpt-5.6-terra', `${model} was delegated to as-is`);
+      assert.equal(backend(), 'gpt-6.1-terra', `${model} was delegated to as-is`);
     }
   });
   it('creates a session with search and function tools', async () => {
@@ -51,7 +51,7 @@ describe('GPT-Live backend', () => {
     assert.equal(s.audio.output.voice, 'ripple');
     assert.equal(s.audio.input, undefined);
     assert.equal(s.type, undefined);
-    assert.equal(s.delegation.responses.model, 'gpt-5.6-terra');
+    assert.equal(s.delegation.responses.model, 'gpt-6.1-terra');
     assert.deepEqual(s.delegation.responses.tools.map((t) => t.name || t.type), ['web_search', 'remember', 'forget']);
     assert.match(s.delegation.responses.instructions, /likes coffee/);
     assert.equal(result.session.id, 'live_test');
