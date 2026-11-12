@@ -110,6 +110,26 @@ describe('createEggBuddy', () => {
     assert.ok(object.getObjectByName('spinner').getObjectByName('body'));
   });
 
+  it('leaves every mesh without shadows, though the stage switches them on, and the renderer’s shadow map off', () => {
+    const renderer = { shadowMap: { enabled: true } };
+    const stage = {
+      _scene: {}, _renderer: renderer,
+      setObject: (o) => o.traverse((c) => { if (c.isMesh) c.castShadow = c.receiveShadow = true; }),
+    };
+    const marc = createEggBuddy({ stage, GFX, look: { kind: 'glass', variant: 'mist' } });
+    marc.setLook({ kind: 'wood', variant: 'oak' });
+    marc.setLook({ kind: 'glass', variant: 'mist' });
+    let meshes = 0;
+    marc.group.traverse((c) => {
+      if (!c.isMesh) return;
+      meshes++;
+      assert.equal(c.castShadow, false, `${c.name} casts a shadow`);
+      assert.equal(c.receiveShadow, false, `${c.name} takes a shadow`);
+    });
+    assert.ok(meshes > 1);
+    assert.equal(renderer.shadowMap.enabled, false);
+  });
+
   it('has an egg on the stage before the stage frames it, or it would frame nothing', () => {
     let meshes = 0;
     createEggBuddy({ stage: stubStage((o) => o.traverse((c) => { if (c.isMesh) meshes++; })), GFX });

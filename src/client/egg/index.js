@@ -19,6 +19,13 @@ export const ROLL_REACH = 0.42;
  * a time, swaps it for another when the look changes, and hands the new one
  * the state the old one was in.
  */
+/** No mesh of his casts a shadow or takes one: the stage's own ground shadow and the egg's self-shadowing both went. */
+function unshadow(group) {
+  group.traverse((o) => {
+    if (o.isMesh) o.castShadow = o.receiveShadow = false;
+  });
+}
+
 export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   /**
    * What the shell is seen in. Metal and glass are all reflection and want the
@@ -28,7 +35,7 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   const rooms = new Map();
   function lightFor(kind) {
     const bright = kind === 'metal' || kind === 'glass';
-    if (!stage._renderer) return;
+    if (!stage._renderer || typeof document === 'undefined') return;
     if (!rooms.has(bright)) {
       rooms.set(bright, bright ? studioEnvironment(GFX, stage._renderer) : environmentFrom(GFX, stage._renderer, paintRoom()));
     }
@@ -47,11 +54,7 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
 
   function make(next) {
     const made = createEgg({ GFX, reach: ROLL_REACH, ...eggOptions(next) });
-    made.group.traverse((o) => {
-      if (!o.isMesh) return;
-      /** The mist is a vision inside the glass, not a thing with a shadow. */
-      o.castShadow = o.receiveShadow = o !== made.mist;
-    });
+    unshadow(made.group);
     made.setState(state);
     made.setLevel(level);
     return made;
@@ -77,6 +80,9 @@ export function createEggBuddy({ stage, GFX, look = DEFAULT_LOOK }) {
   lightFor(current.kind);
   swap(current);
   stage.setObject(mount);
+  /** `setObject` switches every mesh's shadows on, and the renderer's with them: both go back off. */
+  unshadow(mount);
+  if (stage._renderer?.shadowMap) stage._renderer.shadowMap.enabled = false;
 
   return {
     get state() { return state; },
